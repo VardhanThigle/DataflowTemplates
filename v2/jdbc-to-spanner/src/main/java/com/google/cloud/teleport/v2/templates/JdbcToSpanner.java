@@ -40,6 +40,11 @@ import org.apache.beam.sdk.io.jdbc.JdbcIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.values.PCollection;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A template that copies data from a relational database using JDBC to an existing Spanner
@@ -79,6 +84,73 @@ import org.apache.beam.sdk.values.PCollection;
     })
 public class JdbcToSpanner {
 
+  private static class JdbcDataSourceProviderFn
+      implements org.apache.beam.sdk.transforms.SerializableFunction<Void, javax.sql.DataSource> {
+    private JdbcIO.DataSourceConfiguration config;
+    private static final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+    private static final Lock writeLock = readWriteLock.writeLock();
+    private static final Lock readLock = readWriteLock.readLock();
+    private static final Logger LOG = LoggerFactory.getLogger(JdbcDataSourceProviderFn.class);
+    private static transient volatile javax.sql.DataSource dataSource = null;
+
+    JdbcDataSourceProviderFn(JdbcToSpannerOptions options) {
+      config = getDataSourceConfiguration(options);
+    }
+
+    private javax.sql.DataSource initializeDataSourceIfRequired() {
+      // Initialize the connection pool if required.
+      javax.sql.DataSource ret = null;
+      ret = getDataSource();
+      if (ret == null) {
+        ret = initializeDataSource();
+      }
+      return ret;
+    }
+
+    private javax.sql.DataSource initializeDataSource() {
+      javax.sql.DataSource ret;
+      writeLock.lock();
+      try {
+        // Check if it was already initialized till the write lock was acquired.
+        if (dataSource == null) {
+          dataSource = JdbcIO.PoolableDataSourceProvider.of(config).apply(null);
+          LOG.debug("initializeDataSource dataSource" + dataSource.toString());
+        }
+        ret = dataSource;
+      } finally {
+        writeLock.unlock();
+      }
+      return ret;
+    }
+
+    private javax.sql.DataSource getDataSource() {
+      javax.sql.DataSource ret = null;
+      readLock.lock();
+      try {
+        ret = this.dataSource;
+      } finally {
+        readLock.unlock();
+      }
+      return ret;
+    }
+
+    @Override
+    public javax.sql.DataSource apply(Void input) {
+      return initializeDataSourceIfRequired();
+    }
+
+    private static JdbcIO.DataSourceConfiguration getDataSourceConfiguration(
+        JdbcToSpannerOptions options) {
+      return JdbcIO.DataSourceConfiguration.create(
+              StaticValueProvider.of(options.getDriverClassName()),
+              maybeDecrypt(options.getConnectionURL(), null))
+          .withUsername(maybeDecrypt(options.getUsername(), null))
+          .withPassword(maybeDecrypt(options.getPassword(), null))
+          .withMaxConnections(options.getMaxConnections())
+          .withConnectionProperties(options.getConnectionProperties())
+          .withDriverJars(options.getDriverJars());
+    }
+  }
   /**
    * Main entry point for executing the pipeline. This will run the pipeline asynchronously. If
    * blocking execution is required, use the {@link JdbcToSpanner#run} method to start the pipeline
@@ -141,7 +213,7 @@ public class JdbcToSpanner {
   private static JdbcIO.ReadWithPartitions<Mutation, Long> getJdbcReader(
       String table, Set<String> columnsToIgnore, JdbcToSpannerOptions options) {
     return JdbcIO.<Mutation>readWithPartitions()
-        .withDataSourceConfiguration(getDataSourceConfiguration(options))
+        .withDataSourceProviderFn(new JdbcDataSourceProviderFn(options))
         .withTable(table)
         .withPartitionColumn(options.getPartitionColumn())
         .withRowMapper(JdbcConverters.getResultSetToMutation(table, columnsToIgnore))
@@ -159,13 +231,4 @@ public class JdbcToSpanner {
         .withDatabaseId(options.getDatabaseId());
   }
 
-  private static JdbcIO.DataSourceConfiguration getDataSourceConfiguration(
-      JdbcToSpannerOptions options) {
-    return JdbcIO.DataSourceConfiguration.create(
-            StaticValueProvider.of(options.getDriverClassName()),
-            maybeDecrypt(options.getConnectionURL(), null))
-        .withUsername(maybeDecrypt(options.getUsername(), null))
-        .withPassword(maybeDecrypt(options.getPassword(), null))
-        .withDriverJars(options.getDriverJars());
-  }
 }

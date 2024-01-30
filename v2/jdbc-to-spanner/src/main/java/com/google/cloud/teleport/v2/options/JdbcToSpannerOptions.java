@@ -74,6 +74,7 @@ public interface JdbcToSpannerOptions extends CommonTemplateOptions {
           "Properties string to use for the JDBC connection. Format of the string must be"
               + " [propertyName=property;]*.",
       example = "unicode=true;characterEncoding=UTF-8")
+  @Default.String("wait_timeout=57600;interactive_timeout=57600;idletimeout=3600;maxpoolsize=100;maxwaittime=300000")
   String getConnectionProperties();
 
   void setConnectionProperties(String connectionProperties);
@@ -195,4 +196,15 @@ public interface JdbcToSpannerOptions extends CommonTemplateOptions {
   Boolean getIgnoreInvalidMutations();
 
   void setIgnoreInvalidMutations(Boolean value);
+
+  @TemplateParameter.Text(
+      order = 15,
+      optional = true,
+      description = "Ignore Invalid Spanner Mutations.",
+      helpText = "Ignore invalid mutation to spanner. A row that violates any spanner constraints is not written to spanner.",
+      example = "false")
+  @Default.Integer(100)
+  Integer getMaxConnections();
+  void setMaxConnections(Integer value);
+
 }
