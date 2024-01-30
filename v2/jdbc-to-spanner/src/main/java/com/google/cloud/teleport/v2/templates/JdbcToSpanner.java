@@ -34,6 +34,7 @@ import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
+import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.FailureMode;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.Write;
 import org.apache.beam.sdk.io.jdbc.JdbcIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -148,7 +149,11 @@ public class JdbcToSpanner {
   }
 
   private static Write getSpannerWrite(JdbcToSpannerOptions options) {
+    // SpannerIO internally uses SpannerAccssor, which maintains
+    // a single connection with Spanner.
+    FailureMode failureMode = (options.getIgnoreInvalidMutations())? FailureMode.REPORT_FAILURES : FailureMode.FAIL_FAST;
     return SpannerIO.write()
+        .withFailureMode(failureMode)
         .withProjectId(options.getProjectId())
         .withInstanceId(options.getInstanceId())
         .withDatabaseId(options.getDatabaseId());

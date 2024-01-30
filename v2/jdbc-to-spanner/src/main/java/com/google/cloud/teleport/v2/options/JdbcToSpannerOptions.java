@@ -184,4 +184,15 @@ public interface JdbcToSpannerOptions extends CommonTemplateOptions {
   String getIgnoreColumns();
 
   void setIgnoreColumns(String value);
+
+  @TemplateParameter.Text(
+      order = 15,
+      optional = true,
+      description = "Ignore Invalid Spanner Mutations.",
+      helpText = "Ignore invalid mutation to spanner. A row that violates any spanner constraints is not written to spanner.",
+      example = "false")
+  @Default.Boolean(true)
+  Boolean getIgnoreInvalidMutations();
+
+  void setIgnoreInvalidMutations(Boolean value);
 }
