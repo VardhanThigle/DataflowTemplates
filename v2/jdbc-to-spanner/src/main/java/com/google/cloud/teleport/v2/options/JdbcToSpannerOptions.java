@@ -74,7 +74,16 @@ public interface JdbcToSpannerOptions extends CommonTemplateOptions {
           "Properties string to use for the JDBC connection. Format of the string must be"
               + " [propertyName=property;]*.",
       example = "unicode=true;characterEncoding=UTF-8")
-  @Default.String("wait_timeout=57600;interactive_timeout=57600;idletimeout=3600;maxpoolsize=160;maxwaittime=300000")
+  @Default.String(
+      "maxTotal=160;maxpoolsize=160;maxIdle=160;minIdle=160"
+          + ";wait_timeout=57600"
+          + ";interactive_timeout=57600"
+          + ";idletimeout=3600"
+          + ";maxwaittime=600_000"
+          + ";maxWaitMillis=600_000"
+          + ";maxConnLifetimeMillis=600_000"
+          + ";testOnCreate=true;testOnBorrow=true;testOnReturn=true;testWhileIdle=true"
+  )
   String getConnectionProperties();
 
   void setConnectionProperties(String connectionProperties);
