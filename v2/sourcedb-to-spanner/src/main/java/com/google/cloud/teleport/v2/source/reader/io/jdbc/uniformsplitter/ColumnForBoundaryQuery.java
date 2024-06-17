@@ -1,3 +1,18 @@
+/*
+ * Copyright (C) 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter;
 
 import com.google.auto.value.AutoValue;
@@ -5,11 +20,11 @@ import java.io.Serializable;
 import javax.annotation.Nullable;
 
 /**
- * Intermediate data structure generated during PTransforms to indicate a column for which a boundary (min, max) is requested.
+ * Intermediate data structure generated during PTransforms to indicate a column for which a
+ * boundary (min, max) is requested.
  */
 @AutoValue
-public abstract class ColumnForBoundary implements Serializable {
-
+public abstract class ColumnForBoundaryQuery implements Serializable {
 
   /**
    * @return Name of the column for which a boundary query is needed.
@@ -22,6 +37,10 @@ public abstract class ColumnForBoundary implements Serializable {
   @Nullable
   abstract Range<?> parentRange();
 
+  public static Builder builder() {
+    return new AutoValue_ColumnForBoundaryQuery.Builder().setParentRange(null);
+  }
+
   @AutoValue.Builder
   public abstract static class Builder {
 
@@ -29,6 +48,6 @@ public abstract class ColumnForBoundary implements Serializable {
 
     public abstract Builder setParentRange(Range<?> value);
 
-    public abstract ColumnForBoundary build();
+    public abstract ColumnForBoundaryQuery build();
   }
 }
