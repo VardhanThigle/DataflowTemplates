@@ -22,13 +22,18 @@ import com.google.cloud.teleport.v2.source.reader.io.exception.RetriableSchemaDi
 import com.google.cloud.teleport.v2.source.reader.io.exception.SchemaDiscoveryException;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.dialectadapter.DialectAdapter;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.rowmapper.JdbcSourceRowMapper;
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.stringmapper.CollationOrderRow.CollationsOrderQueryColumns;
 import com.google.cloud.teleport.v2.source.reader.io.schema.SourceColumnIndexInfo;
 import com.google.cloud.teleport.v2.source.reader.io.schema.SourceColumnIndexInfo.IndexType;
 import com.google.cloud.teleport.v2.source.reader.io.schema.SourceSchemaReference;
 import com.google.cloud.teleport.v2.spanner.migrations.schema.SourceColumnType;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.re2j.Matcher;
 import com.google.re2j.Pattern;
+import java.net.URL;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -81,6 +86,8 @@ public final class MysqlDialectAdapter implements DialectAdapter {
 
   private final Counter schemaDiscoveryErrors =
       Metrics.counter(JdbcSourceRowMapper.class, MetricCounters.READER_SCHEMA_DISCOVERY_ERRORS);
+
+  private static final String COLLATIONS_QUERY_RESOURCE_PATH = "sql/mysql_collation_oder_query.sql";
 
   public MysqlDialectAdapter(MySqlVersion mySqlVersion) {
     this.mySqlVersion = mySqlVersion;
@@ -531,6 +538,73 @@ public final class MysqlDialectAdapter implements DialectAdapter {
       return true;
     }
     return false;
+  }
+
+  /**
+   * Replace tags for collations and character set as needed in run-time, and, Remove blank lines
+   * and comments from the collations query. Queries with size > max_allowed_packet get rejected by
+   * the db. max_allowed_packet is generally around 16Mb which is a lot for our use case.
+   *
+   * @param query query to prepare.
+   * @param dbCharset character set used by the database for which collation ordering has to be
+   *     found.
+   * @param dbCollation collation set used by the database for which collation ordering has to be
+   *     found.
+   * @return
+   */
+  @VisibleForTesting
+  protected String prepareCollationsOrderQuery(String query, String dbCharset, String dbCollation) {
+    // Replace tags
+    String processedQuery =
+        query
+            .replace("'charset_replacement_tag'", "'" + dbCharset + "'")
+            .replace("'collation_replacement_tag'", "'" + dbCollation + "'");
+
+    // Remove MySQL comments and blank lines.
+
+    // Remove MySql Comments.
+    // Note we don't remove block comments for sake of simplicity.
+    Pattern commentPattern = Pattern.compile("(?m)^[ \\t]?--.*$");
+    Matcher matcher = commentPattern.matcher(processedQuery);
+    processedQuery = matcher.replaceAll("");
+
+    // Remove blank lines
+    processedQuery = processedQuery.replaceAll("(?m)^\\s*\\r?\\n", "");
+    return processedQuery;
+  }
+
+  /**
+   * Load a resource file as string.
+   *
+   * @param resource path of the resource file.
+   * @return resource file as string.
+   */
+  @VisibleForTesting
+  protected static String resourceAsString(String resource) {
+    try {
+      URL url = com.google.common.io.Resources.getResource(resource);
+      return com.google.common.io.Resources.toString(url, Charsets.UTF_8);
+    } catch (Exception e) {
+      // This exception should not happen in production as it really means we don't have the
+      // expected resource
+      // file in bundled in the build or a fatal IO failure in reading one.
+      throw new RuntimeException(e);
+    }
+  }
+
+  /**
+   * Get Query that returns order of collation. The query must return all the characters in the
+   * character set with the columns listed in {@link CollationsOrderQueryColumns}.
+   *
+   * @param dbCharset character set used by the database for which collation ordering has to be
+   *     found.
+   * @param dbCollation collation set used by the database for which collation ordering has to be
+   *     found.
+   */
+  @Override
+  public String getCollationsOrderQuery(String dbCharset, String dbCollation) {
+    return prepareCollationsOrderQuery(
+        resourceAsString(COLLATIONS_QUERY_RESOURCE_PATH), dbCharset, dbCollation);
   }
 
   /**
