@@ -1,9 +1,24 @@
+-- In this query, at a high level we sort a sequence of variable length code points as per the collation order of the database to understand how the code points for characters compare for the given collation.
+-- We start with all possible variable length code points which represent a single characters, sort them by the collation order and condense the output to groups.
+-- More details are explained in the query taht follows.
+-- Note that although the query appears big it completes in a time < 5 seconds as the db just has to do in-memory sorting of literals.
+
 -- Unfortunately we can't use prepared statement to set variable values.
+-- The dataflow code will replace these with the actual db charset and collation.
 -- SET @db_charset = 'charset_replacement_tag';
 -- SET @db_collation = 'collation_replacement_tag';
-SET @db_charset = 'utf8mb3';
-SET @db_collation = 'utf8mb3_general_ci';
+
+SET @db_charset = 'utf8mb4';
+SET @db_collation = 'utf8mb4_0900_ai_ci';
+
+
 -- Any charset natively supported by java.
+-- While reading strings from the db, irrespective of the db character set, jdbc always converts the string to java language native string which supports entire unicode space out of box.
+-- We need to map every character of such a string to code-point representation for generating split ranges.
+-- We also need to know how these code points compare for the given @db_charset,@db_collation, which the query below helps us with.
+-- For the purpose of mapping a character to a code point, java.nio.charset requires all java implementations to support conversion to a few character sets like utf-8
+-- Ref: https://docs.oracle.com/javase/8/docs/api/java/nio/charset/Charset.html
+-- utf8 is one of the charsets all java implementations are required to support.
 SET @native_charset = 'utf8';
 
 
@@ -25,118 +40,153 @@ SET @byte_literals = CONCAT(
 'UNION ALL SELECT ''c0'' AS h UNION ALL SELECT ''c1'' UNION ALL SELECT ''c2'' UNION ALL SELECT ''c3'' UNION ALL SELECT ''c4'' UNION ALL SELECT ''c5'' UNION ALL SELECT ''c6'' UNION ALL SELECT ''c7'' UNION ALL SELECT ''c8'' UNION ALL SELECT ''c9'' UNION ALL SELECT ''ca'' UNION ALL SELECT ''cb'' UNION ALL SELECT ''cc'' UNION ALL SELECT ''cd'' UNION ALL SELECT ''ce'' UNION ALL SELECT ''cf''',
 'UNION ALL SELECT ''d0'' AS h UNION ALL SELECT ''d1'' UNION ALL SELECT ''d2'' UNION ALL SELECT ''d3'' UNION ALL SELECT ''d4'' UNION ALL SELECT ''d5'' UNION ALL SELECT ''d6'' UNION ALL SELECT ''d7'' UNION ALL SELECT ''d8'' UNION ALL SELECT ''d9'' UNION ALL SELECT ''da'' UNION ALL SELECT ''db'' UNION ALL SELECT ''dc'' UNION ALL SELECT ''dd'' UNION ALL SELECT ''de'' UNION ALL SELECT ''df''',
 'UNION ALL SELECT ''e0'' AS h UNION ALL SELECT ''e1'' UNION ALL SELECT ''e2'' UNION ALL SELECT ''e3'' UNION ALL SELECT ''e4'' UNION ALL SELECT ''e5'' UNION ALL SELECT ''e6'' UNION ALL SELECT ''e7'' UNION ALL SELECT ''e8'' UNION ALL SELECT ''e9'' UNION ALL SELECT ''ea'' UNION ALL SELECT ''eb'' UNION ALL SELECT ''ec'' UNION ALL SELECT ''ed'' UNION ALL SELECT ''ee'' UNION ALL SELECT ''ef''',
-'UNION ALL SELECT ''f0'' AS h UNION ALL SELECT ''f1'' UNION ALL SELECT ''f2'' UNION ALL SELECT ''f3'' UNION ALL SELECT ''f4'' UNION ALL SELECT ''f5'' UNION ALL SELECT ''f6'' UNION ALL SELECT ''f7'' UNION ALL SELECT ''f8'' UNION ALL SELECT ''f9'' UNION ALL SELECT ''fa'' UNION ALL SELECT ''fb'' UNION ALL SELECT ''fc'' UNION ALL SELECT ''fd'' UNION ALL SELECT ''fe'' UNION ALL SELECT ''ff''');
+'UNION ALL SELECT ''f0'' AS h UNION ALL SELECT ''f1'' UNION ALL SELECT ''f2'' UNION ALL SELECT ''f3'' UNION ALL SELECT ''f4'' UNION ALL SELECT ''f5'' UNION ALL SELECT ''f6'' UNION ALL SELECT ''f7'' UNION ALL SELECT ''f8'' UNION ALL SELECT ''f9'' UNION ALL SELECT ''fa'' UNION ALL SELECT ''fb'' UNION ALL SELECT ''fc'' UNION ALL SELECT ''fd'' UNION ALL SELECT ''fe'' UNION ALL SELECT ''ff'''
+);
 
--- 4 byte code points.
-SET @union_4 = CONCAT(
+SET @four_byte_codepoints = CONCAT(
   '(SELECT * FROM (SELECT ',
-    ' HEX(CONVERT(UNHEX(CONCAT(t1.h, t2.h, t3.h, t4.h) USING @db_charset)) USING @native_charset) AS utf8_native_hex_value, ',
-    'CONVERT(UNHEX(CONCAT(t1.h, t2.h, t3.h, t4.h)) USING ', @db_charset, ') AS actual_char ',
-    'FROM t AS t1 ',
-    'LEFT JOIN t AS t2 ON 1=1 ',
-    'LEFT JOIN t AS t3 ON 1=1 ',
-    'LEFT JOIN t AS t4 ON 1=1 ',
+    'CONVERT(UNHEX(CONCAT(t1.h, t2.h, t3.h, t4.h)) USING ', @db_charset, ') AS charset_char ',
+    'FROM (', @byte_literals, ') AS t1 ',
+    'LEFT JOIN (', @byte_literals, ') AS t2 ON 1=1 ',
+    'LEFT JOIN (', @byte_literals, ') AS t3 ON 1=1 ',
+    'LEFT JOIN (', @byte_literals, ') AS t4 ON 1=1 ',
     ') AS dt ',
-    'WHERE CHAR_LENGTH(actual_char) <= 1 AND actual_char IS NOT NULL'
+    'WHERE CHAR_LENGTH(charset_char) <= 1 AND charset_char IS NOT NULL'
   ')'
 );
 
-
--- 3 byte code points.
-SET @union_3 = CONCAT(
+SET @three_byte_codepoints = CONCAT(
   '(SELECT * FROM (SELECT ',
-    ' HEX(CONVERT(UNHEX(CONCAT(t1.h, t2.h, t3.h)) USING @db_charset) USING @native_charset) AS utf8_native_hex_value, ',
-    'CONVERT(UNHEX(CONCAT(t1.h, t2.h, t3.h)) USING ', @db_charset, ') AS actual_char ',
-    'FROM t AS t1 ',
-    'LEFT JOIN t AS t2 ON 1=1 ',
-    'LEFT JOIN t AS t3 ON 1=1 ',
+    'CONVERT(UNHEX(CONCAT(t1.h, t2.h, t3.h)) USING ', @db_charset, ') AS charset_char ',
+    'FROM (', @byte_literals, ') AS t1 ',
+    'LEFT JOIN (', @byte_literals, ') AS t2 ON 1=1 ',
+    'LEFT JOIN (', @byte_literals, ') AS t3 ON 1=1 ',
     ') AS dt ',
-    'WHERE CHAR_LENGTH(actual_char) <= 1 AND actual_char IS NOT NULL'
+    'WHERE CHAR_LENGTH(charset_char) <= 1 AND charset_char IS NOT NULL'
   ')'
 );
 
--- 2 byte code points.
-SET @union_2 = CONCAT(
+SET @two_byte_codepoints = CONCAT(
   '(SELECT * FROM (SELECT ',
-    ' HEX(CONVERT(UNHEX(CONCAT(t1.h, t2.h)) USING @db_charset) USING @native_charset) AS utf8_native_hex_value, ',
-    'CONVERT(UNHEX(CONCAT(t1.h, t2.h)) USING ', @db_charset, ') AS actual_char ',
-    'FROM t AS t1 ',
-    'LEFT JOIN t AS t2 ON 1=1 ',
-    ') AS dt ', -- derived table
-    'WHERE CHAR_LENGTH(actual_char) <= 1 AND actual_char IS NOT NULL'
+    'CONVERT(UNHEX(CONCAT(t1.h, t2.h)) USING ', @db_charset, ') AS charset_char ',
+    'FROM (', @byte_literals, ') AS t1 ',
+    'LEFT JOIN (', @byte_literals, ') AS t2 ON 1=1 ',
+    ') AS dt ',
+    'WHERE CHAR_LENGTH(charset_char) <= 1 AND charset_char IS NOT NULL'
   ')'
 );
 
--- 1 byte code points.
-SET @union_1 = CONCAT(
+SET @one_byte_codepoints = CONCAT(
   '(SELECT * FROM (SELECT ',
-    ' HEX(CONVERT(UNHEX(CONCAT(t1.h)) USING @db_charset) USING @native_charset) AS utf8_native_hex_value, ',
-    'CONVERT(UNHEX(t1.h) USING ', @db_charset, ') AS actual_char ',
-    'FROM t AS t1',
+    'CONVERT(UNHEX(t1.h) USING ', @db_charset, ') AS charset_char ',
+    'FROM (', @byte_literals, ') AS t1',
     ') AS dt ', -- derived table
-    'WHERE CHAR_LENGTH(actual_char) <= 1 AND actual_char IS NOT NULL'
+    'WHERE CHAR_LENGTH(charset_char) <= 1 AND charset_char IS NOT NULL'
   ')'
 );
 
--- All variable length code points.
-SET @union = CONCAT(@union_3, ' UNION ALL ', @union_2, ' UNION ALL ', @union_1);
+-- all variable length code points representing a single character within the @db_charset from length 0 till 4.
+SET @codepoints = CONCAT(@three_byte_codepoints, ' UNION ALL ', @two_byte_codepoints, ' UNION ALL ', @one_byte_codepoints);
 
-SET @inner_query=CONCAT(
+-- We use native_codepoint to map character of the string to a java code-point.
+-- equivalent_native_codepoint is the minimum code point which is equal to a given character for the given @db_collation.
+-- For example in any case insensitive collation, the equivalent_native_codepoint for 'a' will be the native_codepoint for 'A'
+-- Refer to the comment on @native_charset above for more details.
+SET @find_equivalents_query=CONCAT(
  'SELECT DISTINCT ',
-      'native_hex_value, actual_char,',
-      'MIN(native_hex_value) OVER (PARTITION BY actual_char COLLATE ', @db_collation, ' ) AS equivalent_native_hex_value ',
+      'CONV(HEX(CONVERT(charset_char using ', @native_charset ,')), 16, 10) as native_codepoint, charset_char,',
+      'MIN(CAST(CONV(HEX(CONVERT(charset_char using ', @native_charset ,')), 16, 10) AS UNSIGNED)) OVER (PARTITION BY charset_char COLLATE ', @db_collation, ' ORDER BY charset_char  COLLATE ', @db_collation,'  ) AS equivalent_native_codepoint ',
       'FROM (',
-        @union,
-       ') As inner_query ',
-       ' WHERE CHAR_LENGTH(actual_char) <= 1 AND actual_char IS NOT NULL ',
-       ' ORDER BY actual_char COLLATE ', @db_collation, ' , native_hex_value '
+        @codepoints,
+       ') As find_equivalents ',
+       ' WHERE CHAR_LENGTH(charset_char) <= 1 AND charset_char IS NOT NULL ',
+       ' ORDER BY CAST(native_codepoint as UNSIGNED) ASC'
+);
+
+-- We find offset of each character from the equivalent_character
+-- For example in all case insensitive collations, the offset for 'a' will be 32 (as it's equal to 'A') and for 'A' will be 0.
+-- Similarly variants of A/a with accents will map to A if the collation is both case and accent insensitive.
+SET @find_offsets_query=CONCAT(
+ 'SELECT native_codepoint, charset_char, equivalent_native_codepoint, ',
+    ' CAST(native_codepoint AS UNSIGNED) - CAST(equivalent_native_codepoint AS UNSIGNED) as offset , ',
+    ' DENSE_RANK() OVER (ORDER BY CAST(equivalent_native_codepoint AS UNSIGNED)) - 1 as codepoint_idx, ',
+    ' ROW_NUMBER() OVER (ORDER BY CAST(native_codepoint AS UNSIGNED)) as rn FROM ( ',
+     @find_equivalents_query,
+    ' ) AS find_offsets ',
+    ' ORDER BY CAST(native_codepoint AS UNSIGNED) ASC '
 );
 
 
-
-
-
-SET @outer_query=CONCAT(
- 'SELECT native_hex_value, actual_char, equivalent_native_hex_value, ',
-    ' CONVERT(UNHEX(equivalent_native_hex_value) using ', @db_charset, ') as equivalent_char, ',
-    ' CONV(native_hex_value, 16, 10) - CONV(equivalent_native_hex_value, 16, 10) as offset, ',
-    'ROW_NUMBER() OVER (ORDER BY native_hex_value) as rn FROM (',
-     @inner_query,
-    ') AS outer_query '
-);
-
-SET @main_query=CONCAT(
-' SELECT *, @offset_group := IF(@prev_offset = offset, @offset_group, @offset_group + 1) AS offset_group, @prev_offset := offset from (' ,
-  @outer_query,
+-- We group the offsets for continuous set of characters, this helps us condense the output.
+-- If we were to exchange, an entire collation table and use it as sideinput, it will have more than 1.1 million entries.
+-- Building on the previous example, all characters from 'a' to 'z' map to either 'A' to 'Z' or themselves('a' to 'z') depending on whether the collation is case sensetive or not.
+-- So all characters from 'a' to 'z' will have fall within the same offset_group (with offset either 32 or 0)
+SET @group_offsets_query=CONCAT(
+' SELECT *, @offset_group := IF(rn = 1, 0, IF(@prev_offset = offset, @offset_group, @offset_group + 1)) AS offset_group, @prev_offset := offset from (' ,
+  @find_offsets_query,
   ' ) as main_query',
-  ' CROSS JOIN (SELECT @offset_group := 0, @prev_offset := -1) AS vars '
--- Initialize variables in cross join. Mysql nulls variables used in select clause even if they are initialized outside.
+  ' ORDER BY CAST(native_codepoint AS UNSIGNED) ASC'
 );
 
--- CONVERT(UNHEX(min(native_hex_value)) as start_native_hex_char,  CONVERT(UNHEX(max(native_hex_value)) as end_native_hex_char,
+-- Initialize variables in cross join. Mysql nulls variables used in select clause even if they are initialized outside.
 
-SET @sql = CONCAT(
-  'WITH t AS (', @byte_literals,') ',
+-- Gets the start and end of the groups.
+-- the start_codepoint_idx or end_codepoint_idx could be replaced by STRING_WEIGHT() in mysql though it is a debug only function and there is no equivalent in PG and ORCA.
+-- ' WITH t AS (', @byte_literals,') ',
+SET @grouped_output = CONCAT(
   ' SELECT ',
-  'MIN(native_hex_value) as start_native_hex,',
-  'MAX(native_hex_value) as end_native_hex, ',
-  ' HEX(CONVERT(UNHEX(MIN(native_hex_value))) USING @native_charset) USING @db_charset) AS start_db_hex_value, ',
-  ' HEX(CONVERT(UNHEX(MAX(native_hex_value))) USING @native_charset) USING @db_charset) AS end_db_hex_value, ',
-  'CONVERT(UNHEX(MIN(native_hex_value)) USING ', @db_charset, ') AS start_char, ',
-  'CONVERT(UNHEX(CONV(CONV(MIN(native_hex_value), 16, 10) - MIN(offset), 10, 16)) USING ', @db_charset, ') AS start_equivalent_char, ',
-  'CONVERT(UNHEX(MAX(native_hex_value)) USING ', @db_charset, ') AS end_char, ',
-  'CONVERT(UNHEX(CONV(CONV(MAX(native_hex_value), 16, 10) - MAX(offset), 10, 16)) USING ', @db_charset, ') AS end_equivalent_char, ',
-  ' MIN(offset) as start_offset, ',
-  ' MAX(offset) as end_offset, ',
+  ' MIN(CAST(native_codepoint AS UNSIGNED)) as start_native_codepoint,',
+  ' MAX(CAST(native_codepoint AS UNSIGNED)) as end_native_codepoint, ',
   ' offset_group ',
   ' FROM (',
-  @main_query,
+  @group_offsets_query,
   ') as group_query',
   ' GROUP BY offset_group ',
-  ' ORDER BY ABS(offset_group), start_native_hex '
+  ' ORDER BY ABS(offset_group), start_native_codepoint '
 );
-SELECT @sql; -- For debugging (Optional - comment out or remove before executing in MySQL)
 
-PREPARE stmt FROM @sql;
+SET @grouped_output_with_codepoint_idx = CONCAT(
+ ' SELECT ',
+ '  grouped_output.*, ',
+ '  start_match.offset as start_offset, ',
+ '  end_match.offset as end_offset, ',
+ '  start_match.equivalent_native_codepoint as start_equivalent_native_codepoint, ',
+ '  end_match.equivalent_native_codepoint as end_equivalent_native_codepoint, ',
+ '  start_match.codepoint_idx AS start_codepoint_idx, ',
+ '  end_match.codepoint_idx AS end_codepoint_idx, ',
+ '  start_match.charset_char AS start_charset_char, ',
+ '  end_match.charset_char AS end_charset_char ',
+ ' FROM ( ',
+    @grouped_output,
+ ' ) AS grouped_output '
+ ' INNER JOIN ( ',
+    @group_offsets_query,
+ ' ) AS start_match ',
+ '  ON grouped_output.start_native_codepoint = start_match.native_codepoint ',
+ ' INNER JOIN ( ',
+    @group_offsets_query,
+ ' ) AS end_match ',
+ '  ON grouped_output.end_native_codepoint = end_match.native_codepoint ',
+ ' ORDER BY ABS(grouped_output.offset_group), grouped_output.start_native_codepoint'
+);
+
+
+
+
+-- Here we just get the start and end of each group.
+-- We need only few columns from the final query, but for (manual/test) verification, we are adding more.
+-- Adding more derived columns does not really add any overhead to the query optimization.
+SET @condensed_output_query = CONCAT(
+  ' SELECT *, ',
+  '             CONVERT(UNHEX(CONV(start_equivalent_native_codepoint, 10, 16)) USING ', @native_charset, ') AS start_equivalent_char, ',
+  '             CONVERT(UNHEX(CONV(end_equivalent_native_codepoint, 10,16)) USING ', @native_charset, ') AS end_equivalent_char, ',
+  ' HEX(CONVERT(CONVERT(UNHEX(CONV(start_native_codepoint, 10 , 16)) USING ', @native_charset, ') USING ', @db_charset ,')) AS start_db_codepoint_hex, ',
+  ' HEX(CONVERT(CONVERT(UNHEX(CONV(end_native_codepoint, 10, 16)) USING ', @native_charset, ') USING ', @db_charset ,')) AS end_db_codepoint_hex ',
+  ' FROM (',
+    @grouped_output_with_codepoint_idx,
+  ' ) as condensed_output_query '
+);
+
+PREPARE stmt FROM @condensed_output_query;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
