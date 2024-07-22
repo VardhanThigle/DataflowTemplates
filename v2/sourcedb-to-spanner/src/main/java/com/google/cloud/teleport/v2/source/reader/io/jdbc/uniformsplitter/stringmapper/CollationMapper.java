@@ -186,6 +186,12 @@ public abstract class CollationMapper implements Serializable {
       return "";
     }
 
+    // Base Case that the string just represents single character
+    if (element == BigInteger.ZERO) {
+      char c = getCharacterFromPosition(element.longValue(), true);
+      return String.valueOf(c);
+    }
+
     while (element != BigInteger.ZERO) {
       long charsetSize = getCharsetSize(index == 0);
 

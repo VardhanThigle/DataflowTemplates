@@ -179,6 +179,7 @@ public class CollationMapperTest {
             .build();
     CollationMapper.Builder collationMapperBuilder =
         CollationMapper.builder(testCollationReference);
+
     /* Add space character */
     collationMapperBuilder.addCharacter(
         CollationOrderRow.builder()
@@ -206,6 +207,33 @@ public class CollationMapperTest {
     assertThat(collationMapper.unMapString(collationMapper.mapString("\0", 0))).isEqualTo("");
     assertThat(collationMapper.unMapString(collationMapper.mapString(null, 0))).isEqualTo("");
     assertThat(collationMapper.unMapString(collationMapper.mapString("    ", 0))).isEqualTo("");
+  }
+
+  @Test
+  public void testCollationMapperSingleCharacterString() {
+
+    CollationReference testCollationReference =
+        CollationReference.builder()
+            .setDbCharacterSet("testCharSet")
+            .setDbCollation("testCollation")
+            .setPadSpace(true)
+            .build();
+    CollationMapper.Builder collationMapperBuilder =
+        CollationMapper.builder(testCollationReference);
+
+    /* Add Single Character */
+    collationMapperBuilder.addCharacter(
+        CollationOrderRow.builder()
+            .setCharsetChar('a')
+            .setEquivalentChar('a')
+            .setEquivalentCharPadSpace('a')
+            .setCodepointRank(0L)
+            .setCodepointRankPadSpace(0L)
+            .setIsEmpty(false)
+            .setIsSpace(false)
+            .build());
+    CollationMapper collationMapper = collationMapperBuilder.build();
+    assertThat(collationMapper.unMapString(collationMapper.mapString("a", 1))).isEqualTo("a");
   }
 
   @Test

@@ -18,6 +18,7 @@ package com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.strin
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -28,7 +29,7 @@ import org.slf4j.LoggerFactory;
  * map a position to back to a character.
  */
 @AutoValue
-abstract class CollationIndex {
+public abstract class CollationIndex implements Serializable {
 
   private static final Logger logger = LoggerFactory.getLogger(CollationIndex.class);
 
