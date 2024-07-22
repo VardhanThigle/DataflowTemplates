@@ -18,6 +18,7 @@ package com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.stringmapper.CollationReference;
 import java.math.BigInteger;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
 import org.apache.commons.pool.impl.GenericObjectPool;
@@ -116,7 +117,12 @@ public class BoundarySplitterFactoryTest {
         PartitionColumn.builder()
             .setColumnName("col1")
             .setColumnClass(String.class)
-            .setStringCollation("latin1_general_cs")
+            .setStringCollation(
+                CollationReference.builder()
+                    .setDbCharacterSet("latin1")
+                    .setDbCollation("latin1_general_cs")
+                    .setPadSpace(true)
+                    .build())
             .setStringMaxLength(255)
             .build();
 

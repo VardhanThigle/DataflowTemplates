@@ -85,6 +85,7 @@ public abstract class CollationMapperTransform
                   input.getPipeline().getCoderRegistry().getCoder(CollationMapper.class)))
           .apply("CollationMapperView", View.asMap());
     } catch (CannotProvideCoderException e) {
+      // This line is hard to unit test as the coders for serializable classes will be available.
       throw new RuntimeException(e);
     }
   }

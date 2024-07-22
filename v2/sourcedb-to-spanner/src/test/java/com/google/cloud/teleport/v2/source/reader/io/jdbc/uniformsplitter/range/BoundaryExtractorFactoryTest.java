@@ -19,6 +19,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.stringmapper.CollationReference;
 import java.math.BigInteger;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -90,7 +91,12 @@ public class BoundaryExtractorFactoryTest {
         PartitionColumn.builder()
             .setColumnName("col1")
             .setColumnClass(String.class)
-            .setStringCollation("latin1_swedish_ci")
+            .setStringCollation(
+                CollationReference.builder()
+                    .setDbCharacterSet("latin1")
+                    .setDbCollation("latin1_swedish_ci")
+                    .setPadSpace(true)
+                    .build())
             .setStringMaxLength(255)
             .build();
     BoundaryExtractor<String> extractor = BoundaryExtractorFactory.create(String.class);
