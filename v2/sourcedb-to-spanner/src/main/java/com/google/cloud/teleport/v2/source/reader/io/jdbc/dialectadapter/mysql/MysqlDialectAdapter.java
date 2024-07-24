@@ -23,6 +23,7 @@ import com.google.cloud.teleport.v2.source.reader.io.exception.SchemaDiscoveryEx
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.dialectadapter.DialectAdapter;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.rowmapper.JdbcSourceRowMapper;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.stringmapper.CollationOrderRow.CollationsOrderQueryColumns;
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.stringmapper.CollationReference;
 import com.google.cloud.teleport.v2.source.reader.io.schema.SourceColumnIndexInfo;
 import com.google.cloud.teleport.v2.source.reader.io.schema.SourceColumnIndexInfo.IndexType;
 import com.google.cloud.teleport.v2.source.reader.io.schema.SourceSchemaReference;
@@ -31,6 +32,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.re2j.Matcher;
 import com.google.re2j.Pattern;
 import java.net.URL;
@@ -42,6 +44,7 @@ import java.sql.SQLTimeoutException;
 import java.sql.SQLTransientConnectionException;
 import java.sql.Statement;
 import java.util.HashSet;
+import javax.annotation.Nullable;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -50,6 +53,11 @@ import org.slf4j.LoggerFactory;
 
 /** Adapter for MySql dialect of JDBC databases. */
 public final class MysqlDialectAdapter implements DialectAdapter {
+
+  public static final String PAD_SPACE = "PAD SPACE";
+  public static final String NO_PAD = "NO PAD";
+  public static final String BINARY_CHARACTER_SET = "binary";
+  public static final String BINARY_COLLATION = "binary";
   private final MySqlVersion mySqlVersion;
 
   private static final Logger logger = LoggerFactory.getLogger(MysqlDialectAdapter.class);
@@ -294,6 +302,13 @@ public final class MysqlDialectAdapter implements DialectAdapter {
         + " TABLE_NAME = ?";
   }
 
+  /**
+   * Discover Indexed columns and their Collations(if applicable). You could try this on <a href =
+   * https://https://www.db-fiddle.com/f/kRVPA5jDwZYNj2rsdtif4K/2>db-fiddle</a>
+   *
+   * @param sourceSchemaReference
+   * @return
+   */
   protected static String getIndexDiscoveryQuery(SourceSchemaReference sourceSchemaReference) {
     return "SELECT "
         + String.join(",", InformationSchemaStatsCols.colList())
@@ -304,6 +319,10 @@ public final class MysqlDialectAdapter implements DialectAdapter {
         + "stats.table_schema = cols.table_schema"
         + " AND stats.table_name = cols.table_name"
         + " AND stats.column_name = cols.column_name"
+        + " LEFT JOIN "
+        + "INFORMATION_SCHEMA.COLLATIONS collations"
+        + " ON "
+        + "cols.COLLATION_NAME = collations.COLLATION_NAME"
         + " WHERE stats.TABLE_SCHEMA = "
         + "'"
         + sourceSchemaReference.dbName()
@@ -342,7 +361,18 @@ public final class MysqlDialectAdapter implements DialectAdapter {
           .put("MEDIUMINT", IndexType.NUMERIC)
           .put("SMALLINT", IndexType.NUMERIC)
           .put("TINYINT", IndexType.NUMERIC)
+          // String types: Ref https://dev.mysql.com/doc/refman/8.4/en/string-type-syntax.html
+          .put("CHAR", IndexType.STRING)
+          .put("VARCHAR", IndexType.STRING)
+          .put("BINARY", IndexType.STRING)
+          .put("VARBINARY", IndexType.STRING)
+          .put("BLOB", IndexType.STRING)
+          .put("TEXT", IndexType.STRING)
+          .put("ENUM", IndexType.STRING)
+          .put("SET", IndexType.STRING)
           .build();
+
+  private ImmutableSet<String> binaryColumnTypes = ImmutableSet.of("BINARY", "VARBINARY", "BLOB");
 
   private ImmutableList<SourceColumnIndexInfo> getTableIndexes(
       String table, PreparedStatement statement) throws SchemaDiscoveryException {
@@ -359,8 +389,50 @@ public final class MysqlDialectAdapter implements DialectAdapter {
         boolean isPrimary = indexName.trim().toUpperCase().equals("PRIMARY");
         long cardinality = rs.getLong(InformationSchemaStatsCols.CARDINALITY_COL);
         long ordinalPosition = rs.getLong(InformationSchemaStatsCols.ORDINAL_POS_COL);
+        @Nullable
+        Integer stringMaxLength = rs.getInt(InformationSchemaStatsCols.CHAR_MAX_LENGTH_COL);
+        if (rs.wasNull()) {
+          stringMaxLength = null;
+        }
+        @Nullable String characterSet = rs.getString(InformationSchemaStatsCols.CHARACTER_SET_COL);
+        @Nullable String collation = rs.getString(InformationSchemaStatsCols.COLLATION_COL);
+        @Nullable String padSpace = rs.getString(InformationSchemaStatsCols.PAD_SPACE_COL);
+        logger.debug(
+            "Discovered column {} from index {}, isUnique {}, isPrimary {}, cardinality {}, ordinalPosition {}, character-set {}, collation {}, pad-space {}",
+            colName,
+            indexName,
+            isUnique,
+            isPrimary,
+            cardinality,
+            ordinalPosition,
+            characterSet,
+            collation,
+            padSpace);
+        // TODO(vardhanvthigle): MySql 5.7 is always PAD space and does not have PAD_ATTRIBUTE
+        // Column.
         String columType = normalizeColumnType(rs.getString(InformationSchemaStatsCols.TYPE_COL));
         IndexType indexType = INDEX_TYPE_MAPPING.getOrDefault(columType, IndexType.OTHER);
+
+        CollationReference collationReference = null;
+        // Binary (and similar columns like VarBinary, Blob etc) columns have a fixed character-set
+        // and collation called "binary".
+        // Ref https://dev.mysql.com/doc/refman/8.4/en/charset-binary-collations.html
+        // In information_schema.columns query, these column types show null as character set.
+        // Ref: https://www.db-fiddle.com/f/kRVPA5jDwZYNj2rsdtif4K/2
+        if (binaryColumnTypes.contains(columType) && characterSet == null) {
+          characterSet = BINARY_CHARACTER_SET;
+          collation = BINARY_COLLATION;
+          padSpace = NO_PAD;
+        }
+        if (characterSet != null) {
+          collationReference =
+              CollationReference.builder()
+                  .setDbCharacterSet(characterSet)
+                  .setDbCollation(collation)
+                  .setPadSpace(
+                      (padSpace == null) ? false : padSpace.trim().toUpperCase().equals(PAD_SPACE))
+                  .build();
+        }
 
         indexesBuilder.add(
             SourceColumnIndexInfo.builder()
@@ -371,6 +443,8 @@ public final class MysqlDialectAdapter implements DialectAdapter {
                 .setCardinality(cardinality)
                 .setOrdinalPosition(ordinalPosition)
                 .setIndexType(indexType)
+                .setCollationReference(collationReference)
+                .setStringMaxLength(stringMaxLength)
                 .build());
       }
     } catch (java.sql.SQLException e) {
@@ -638,10 +712,25 @@ public final class MysqlDialectAdapter implements DialectAdapter {
     public static final String CARDINALITY_COL = "stats.CARDINALITY";
 
     public static final String TYPE_COL = "cols.DATA_TYPE";
+    public static final String CHAR_MAX_LENGTH_COL = "cols.CHARACTER_MAXIMUM_LENGTH";
+    public static final String CHARACTER_SET_COL = "cols.CHARACTER_SET_NAME";
+    public static final String COLLATION_COL = "cols.COLLATION_NAME";
+
+    // TODO(vardhanvthigle): MySql 5.7 is always PAD space and does not have PAD_ATTRIBUTE Column.
+    public static final String PAD_SPACE_COL = "collations.PAD_ATTRIBUTE";
 
     public static ImmutableList<String> colList() {
       return ImmutableList.of(
-          COL_NAME_COL, INDEX_NAME_COL, ORDINAL_POS_COL, NON_UNIQ_COL, CARDINALITY_COL, TYPE_COL);
+          COL_NAME_COL,
+          INDEX_NAME_COL,
+          ORDINAL_POS_COL,
+          NON_UNIQ_COL,
+          CARDINALITY_COL,
+          TYPE_COL,
+          CHAR_MAX_LENGTH_COL,
+          CHARACTER_SET_COL,
+          COLLATION_COL,
+          PAD_SPACE_COL);
     }
 
     private InformationSchemaStatsCols() {}
