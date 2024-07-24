@@ -18,9 +18,12 @@ package com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.stringmapper.CollationMapper;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.stringmapper.CollationReference;
 import java.math.BigInteger;
+import java.util.Map;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.commons.pool.impl.GenericObjectPool;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -253,6 +256,11 @@ public class BoundarySplitterFactoryTest {
       }
       String ret = word.reverse().toString();
       return ret;
+    }
+
+    @Override
+    public PCollectionView<Map<CollationReference, CollationMapper>> getCollationMapperView() {
+      return null;
     }
   }
 }

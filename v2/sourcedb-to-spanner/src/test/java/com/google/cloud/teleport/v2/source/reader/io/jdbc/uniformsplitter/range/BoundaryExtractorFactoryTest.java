@@ -19,12 +19,15 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.stringmapper.CollationMapper;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.stringmapper.CollationReference;
 import java.math.BigInteger;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Map;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.PoolableDataSourceProvider;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -121,6 +124,12 @@ public class BoundaryExtractorFactoryTest {
               @Override
               public String unMapString(
                   BigInteger element, PartitionColumn partitionColumn, ProcessContext c) {
+                return null;
+              }
+
+              @Override
+              public PCollectionView<Map<CollationReference, CollationMapper>>
+                  getCollationMapperView() {
                 return null;
               }
             });
