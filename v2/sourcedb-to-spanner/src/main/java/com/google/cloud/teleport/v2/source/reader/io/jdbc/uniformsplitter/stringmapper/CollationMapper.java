@@ -19,6 +19,7 @@ import com.google.auto.value.AutoValue;
 import com.google.auto.value.extension.memoized.Memoized;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.UniformSplitterDBAdapter;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.stringmapper.CollationIndex.CollationIndexType;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import java.io.Serializable;
 import java.math.BigInteger;
@@ -229,10 +230,25 @@ public abstract class CollationMapper implements Serializable {
     String query =
         dbAdapter.getCollationsOrderQuery(
             collationReference.dbCharacterSet(), collationReference.dbCollation());
-    CollationMapper mapper;
-    try (Statement statement = connection.createStatement();
-        ResultSet rs = statement.executeQuery(query)) {
-      mapper = fromResultSet(rs, collationReference);
+    CollationMapper mapper = null;
+    try (Statement statement = connection.createStatement()) {
+      statement.setEscapeProcessing(false);
+      // Due to https://bugs.mysql.com/bug.php?id=108195 affecting the version of connector,
+      // we can't use executeQuery for a multi line complex query.
+      boolean foundResultSet = statement.execute(query);
+      while (true) {
+        if (foundResultSet) {
+          ResultSet rs = statement.getResultSet();
+          mapper = fromResultSet(rs, collationReference);
+          break;
+        }
+        foundResultSet = statement.getMoreResults();
+        if (!foundResultSet && statement.getUpdateCount() == -1) {
+          Preconditions.checkState(
+              false, "No result sets found while querying collation for " + collationReference);
+          break; // No more results
+        }
+      }
     } catch (SQLException e) {
       // Beam will auto retry the exceptions in run time.
       logger.error(
