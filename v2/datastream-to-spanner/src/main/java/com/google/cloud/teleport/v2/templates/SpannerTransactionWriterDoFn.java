@@ -302,6 +302,7 @@ class SpannerTransactionWriterDoFn extends DoFn<FailsafeElement<String, String>,
       LOG.warn(e.getMessage());
       droppedTableExceptions.inc();
     } catch (InvalidChangeEventException e) {
+      LOG.error("Invalid Change Exception", e);
       // Errors that result from invalid change events.
       outputWithErrorTag(c, msg, e, DatastreamToSpannerConstants.PERMANENT_ERROR_TAG);
       invalidEvents.inc();
@@ -310,6 +311,7 @@ class SpannerTransactionWriterDoFn extends DoFn<FailsafeElement<String, String>,
             .inc();
       }
     } catch (ChangeEventConvertorException e) {
+      LOG.error("Conversion Error", e);
       // Errors that result during Event conversions are not retryable.
       outputWithErrorTag(c, msg, e, DatastreamToSpannerConstants.PERMANENT_ERROR_TAG);
       if (migrationShardId != null) {
@@ -320,6 +322,7 @@ class SpannerTransactionWriterDoFn extends DoFn<FailsafeElement<String, String>,
       }
       conversionErrors.inc();
     } catch (IllegalStateException ex) {
+      LOG.error("Illegal State Exception", ex);
       /*
        * IllegalStateException can occur due to conditions like spanner pool being closed,
        * in which case if this event is requed to same or different node at a later point in time,
@@ -331,6 +334,7 @@ class SpannerTransactionWriterDoFn extends DoFn<FailsafeElement<String, String>,
         retryableErrors.inc();
       }
     } catch (SpannerException ex) {
+      LOG.error("Spanner Exception", ex);
       /*
        * There are many SpannerExceptions which can occur. Some of them are retryable and some of them are non-retryable.
        * Examples:
@@ -358,6 +362,7 @@ class SpannerTransactionWriterDoFn extends DoFn<FailsafeElement<String, String>,
         retryableErrors.inc();
       }
     } catch (Exception e) {
+      LOG.error("Unhandled Exception", e);
       // Any other errors are considered severe and not retryable.
       outputWithErrorTag(c, msg, e, DatastreamToSpannerConstants.PERMANENT_ERROR_TAG);
       failedEvents.inc();
