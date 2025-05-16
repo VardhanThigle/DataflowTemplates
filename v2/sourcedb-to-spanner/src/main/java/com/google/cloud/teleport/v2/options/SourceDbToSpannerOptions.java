@@ -292,4 +292,16 @@ public interface SourceDbToSpannerOptions extends CommonTemplateOptions {
   Options.RpcPriority getSpannerPriority();
 
   void setSpannerPriority(Options.RpcPriority value);
+
+  @TemplateParameter.Long(
+      order = 24,
+      optional = true,
+      description =
+          "Hint for number of uniformization stages. Currently Applicable only for jdc based sources like MySql or PG. Leave 0 or default to disable uniformization. Set to -1 for a log(numPartition) number of stages.",
+      helpText =
+          "Hint for number of uniformization stages. Currently Applicable only for jdc based sources like MySql or PG. Leave 0 or default to disable uniformization. Set to -1 for a log(numPartition) number of stages.")
+  @Default.Long(0)
+  Long getUniformizationStageCountHint();
+
+  void setUniformizationStageCountHint(Long value);
 }
