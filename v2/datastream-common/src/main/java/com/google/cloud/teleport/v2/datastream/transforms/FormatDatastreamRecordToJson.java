@@ -34,6 +34,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.apache.avro.Conversions.DecimalConversion;
@@ -80,6 +81,12 @@ public class FormatDatastreamRecordToJson
   private static final Long DATETIME_NEGATIVE_INFINITY = -9223372036832400000L;
 
   private FormatDatastreamRecordToJson() {}
+
+  private static final String SOURCE_TYPE_MYSQL = "mysql";
+  private static final String SOURCE_TYPE_PG = "postgresql";
+  private static final String SOURCE_TYPE_ORACLE = "oracle";
+  private static final Set<String> SUPPORTED_SOURCE_TYPES =
+      Set.of(SOURCE_TYPE_MYSQL, SOURCE_TYPE_PG, SOURCE_TYPE_ORACLE);
 
   public static FormatDatastreamRecordToJson create() {
     return new FormatDatastreamRecordToJson();
@@ -137,12 +144,12 @@ public class FormatDatastreamRecordToJson
     outputObject.put("_metadata_primary_keys", getPrimaryKeys(record));
     outputObject.put("_metadata_uuid", getUUID());
 
-    if (sourceType.equals("mysql")) {
+    if (sourceType.equals(SOURCE_TYPE_MYSQL)) {
       // MySQL Specific Metadata
       outputObject.put("_metadata_schema", getMetadataDatabase(record));
       outputObject.put("_metadata_log_file", getSourceMetadata(record, "log_file"));
       outputObject.put("_metadata_log_position", getSourceMetadata(record, "log_position"));
-    } else if (sourceType.equals("postgresql")) {
+    } else if (sourceType.equals(SOURCE_TYPE_PG)) {
       // Postgres Specific Metadata
       outputObject.put("_metadata_schema", getMetadataSchema(record));
       outputObject.put("_metadata_lsn", getPostgresLsn(record));
@@ -203,6 +210,10 @@ public class FormatDatastreamRecordToJson
 
   private String getSourceType(GenericRecord record) {
     String sourceType = record.get("read_method").toString().split("-")[0];
+    if (!SUPPORTED_SOURCE_TYPES.contains(sourceType)) {
+      // DO NOT SUBMIT
+      sourceType = SOURCE_TYPE_MYSQL;
+    }
     // TODO: consider validating the value is mysql or oracle
     return sourceType;
   }
