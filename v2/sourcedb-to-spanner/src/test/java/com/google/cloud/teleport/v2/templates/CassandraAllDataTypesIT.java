@@ -35,6 +35,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.stream.Collectors;
 import org.apache.beam.it.cassandra.CassandraResourceManager;
 import org.apache.beam.it.common.PipelineLauncher;
@@ -279,9 +280,21 @@ public class CassandraAllDataTypesIT extends SourceDbToSpannerITBase {
   private List<Map<String, String>> getAllDataTypeRows() {
     List<Map<String, String>> allDataTypeRows = new ArrayList<>();
     allDataTypeRows.add(getAllDataTypeNullRow());
+    allDataTypeRows.add(
+        getAllDataTypeDlqRow().entrySet().stream()
+            .map(
+                e -> {
+                  if (e.getKey().contains("_set_col")) {
+                    return Map.entry(e.getKey(), "NULL");
+                  } else if (e.getKey().contains("_list_col")) {
+                    return Map.entry(e.getKey(), "NULL");
+                  } else {
+                    return e;
+                  }
+                })
+            .collect(ImmutableMap.toImmutableMap(Entry::getKey, Entry::getValue)));
     allDataTypeRows.add(getAllDataTypeMaxRow());
     allDataTypeRows.add(getAllDataTypeMinRow());
-    allDataTypeRows.add(getAllDataTypeDlqRow());
     return allDataTypeRows;
   }
 

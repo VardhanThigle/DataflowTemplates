@@ -15,6 +15,11 @@
  */
 package com.google.cloud.teleport.v2.writer;
 
+import static com.google.cloud.teleport.v2.spanner.migrations.avro.GenericRecordTypeConvertor.filterNullSchema;
+import static com.google.cloud.teleport.v2.spanner.migrations.avro.GenericRecordTypeConvertor.handleArrayAvroTypes;
+import static com.google.cloud.teleport.v2.spanner.migrations.avro.GenericRecordTypeConvertor.handleLogicalFieldType;
+import static com.google.cloud.teleport.v2.spanner.migrations.avro.GenericRecordTypeConvertor.handleRecordFieldType;
+
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Value;
 import com.google.cloud.teleport.v2.cdc.dlq.StringDeadLetterQueueSanitizer;
@@ -22,6 +27,8 @@ import com.google.cloud.teleport.v2.coders.FailsafeElementCoder;
 import com.google.cloud.teleport.v2.constants.MetricCounters;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.iowrapper.config.SQLDialect;
 import com.google.cloud.teleport.v2.spanner.ddl.Ddl;
+import com.google.cloud.teleport.v2.spanner.ddl.annotations.cassandra.CassandraAnnotations;
+import com.google.cloud.teleport.v2.spanner.migrations.schema.ISchemaMapper;
 import com.google.cloud.teleport.v2.templates.RowContext;
 import com.google.cloud.teleport.v2.templates.datastream.DatastreamConstants;
 import com.google.cloud.teleport.v2.transforms.DLQWriteTransform;
@@ -30,6 +37,7 @@ import com.google.common.annotations.VisibleForTesting;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.Map;
+import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -65,15 +73,21 @@ public class DeadLetterQueue implements Serializable {
 
   private final SQLDialect sqlDialect;
 
+  private final ISchemaMapper schemaMapper;
+
   public static final Counter FAILED_MUTATION_COUNTER =
       Metrics.counter(SpannerWriter.class, MetricCounters.FAILED_MUTATION_ERRORS);
+
+  static final String LOGICAL_TYPE = "logicalType";
 
   public static DeadLetterQueue create(
       String dlqDirectory,
       Ddl ddl,
       Map<String, String> srcTableToShardIdColumnMap,
-      SQLDialect sqlDialect) {
-    return new DeadLetterQueue(dlqDirectory, ddl, srcTableToShardIdColumnMap, sqlDialect);
+      SQLDialect sqlDialect,
+      ISchemaMapper iSchemaMapper) {
+    return new DeadLetterQueue(
+        dlqDirectory, ddl, srcTableToShardIdColumnMap, sqlDialect, iSchemaMapper);
   }
 
   public String getDlqDirectory() {
@@ -88,12 +102,14 @@ public class DeadLetterQueue implements Serializable {
       String dlqDirectory,
       Ddl ddl,
       Map<String, String> srcTableToShardIdColumnMap,
-      SQLDialect sqlDialect) {
+      SQLDialect sqlDialect,
+      ISchemaMapper iSchemaMapper) {
     this.dlqDirectory = dlqDirectory;
     this.dlqTransform = createDLQTransform(dlqDirectory);
     this.ddl = ddl;
     this.srcTableToShardIdColumnMap = srcTableToShardIdColumnMap;
     this.sqlDialect = sqlDialect;
+    this.schemaMapper = iSchemaMapper;
   }
 
   @VisibleForTesting
@@ -187,7 +203,7 @@ public class DeadLetterQueue implements Serializable {
     initializeJsonNode(json, r.row().tableName(), r.row().getReadTimeMicros());
 
     for (Field f : record.getSchema().getFields()) {
-      Object value = record.get(f.name());
+      Object value = getObjectFromRecord(record, f, r.row().tableName(), schemaMapper);
       json.put(f.name(), value == null ? null : value.toString());
     }
     if (r.row().shardId() != null) {
@@ -204,6 +220,36 @@ public class DeadLetterQueue implements Serializable {
               "TransformationFailed: " + r.err() + "\n" + r.getStackTraceString());
     }
     return dlqElement;
+  }
+
+  @VisibleForTesting
+  protected static Object getObjectFromRecord(
+      GenericRecord record, Field f, String srcTableName, ISchemaMapper schemaMapper) {
+    String fieldName = f.name();
+    Object recordValue = record.get(fieldName);
+    if (recordValue == null) {
+      return null;
+    }
+    Schema fieldSchema = filterNullSchema(f.schema(), fieldName, recordValue);
+
+    final CassandraAnnotations cassandraAnnotations =
+        schemaMapper.getSpannerColumnCassandraAnnotations(
+            "",
+            schemaMapper.getSpannerTableName("", srcTableName),
+            schemaMapper.getSpannerColumnName("", srcTableName, fieldName));
+    if (fieldSchema.getLogicalType() != null || fieldSchema.getProp(LOGICAL_TYPE) != null) {
+      recordValue =
+          handleLogicalFieldType(fieldName, recordValue, fieldSchema, cassandraAnnotations);
+    } else if (fieldSchema.getType().equals(Schema.Type.RECORD)) {
+      // Get the avro field of type record from the whole record.
+      recordValue = handleRecordFieldType(fieldName, (GenericRecord) recordValue, fieldSchema);
+    } else if (fieldSchema.getType().equals(Schema.Type.ARRAY)) {
+      // Get the avro field of type record from the Array.
+      recordValue = handleArrayAvroTypes(recordValue, fieldSchema, fieldName, cassandraAnnotations);
+    }
+    // TODO
+    LOG.info("vvt DLQ LOG: row = {}\nrecordValue = {}", record.get(fieldName), recordValue);
+    return recordValue;
   }
 
   public void failedMutationsToDLQ(
@@ -257,6 +303,8 @@ public class DeadLetterQueue implements Serializable {
     json.put(DatastreamConstants.EVENT_CHANGE_TYPE_KEY, DatastreamConstants.UPDATE_INSERT_EVENT);
     json.put(DatastreamConstants.EVENT_TABLE_NAME_KEY, tableName);
     json.put(DatastreamConstants.MYSQL_TIMESTAMP_KEY, timeStamp);
+    json.put("_metadata_read_timestamp", timeStamp);
+    json.put("_metadata_dataflow_timestamp", timeStamp);
     switch (this.sqlDialect) {
       case POSTGRESQL:
         json.put(

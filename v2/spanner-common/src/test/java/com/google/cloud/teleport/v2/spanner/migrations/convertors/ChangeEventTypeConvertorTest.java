@@ -648,7 +648,8 @@ public final class ChangeEventTypeConvertorTest {
     changeEvent.put("field3", "2020-12-30T12:12:12Z");
     changeEvent.put("field4", "2020-12-30T00:00:00");
     changeEvent.put("field5", "2020-12-30T12:12:12");
-    changeEvent.put("field6", JSONObject.NULL);
+    changeEvent.put("field6", "24855");
+    changeEvent.put("fiel76", JSONObject.NULL);
     JsonNode ce = getJsonNode(changeEvent.toString());
 
     assertEquals(
@@ -666,7 +667,10 @@ public final class ChangeEventTypeConvertorTest {
     assertEquals(
         ChangeEventTypeConvertor.toDate(ce, "field5", /* requiredField= */ true),
         Date.parseDate("2020-12-30"));
-    assertNull(ChangeEventTypeConvertor.toDate(ce, "field6", /* requiredField= */ false));
+    assertEquals(
+        ChangeEventTypeConvertor.toDate(ce, "field6", /* requiredField= */ true),
+        Date.parseDate("2038-01-19"));
+    assertNull(ChangeEventTypeConvertor.toDate(ce, "field7", /* requiredField= */ false));
   }
 
   @Test(expected = ChangeEventConvertorException.class)
@@ -680,9 +684,11 @@ public final class ChangeEventTypeConvertorTest {
   }
 
   @Test(expected = ChangeEventConvertorException.class)
-  public void cannotConvertLongToDate() throws Exception {
+  public void cannotConvertLongMaxToDate() throws Exception {
     JSONObject changeEvent = new JSONObject();
-    changeEvent.put("field1", 123456789);
+    /* Avro Logical Date is represented as Integer */
+    /* Ref https://cloud.google.com/datastream/docs/unified-types */
+    changeEvent.put("field1", Long.MAX_VALUE);
     JsonNode ce = getJsonNode(changeEvent.toString());
     assertEquals(
         ChangeEventTypeConvertor.toDate(ce, "field1", /* requiredField= */ true),

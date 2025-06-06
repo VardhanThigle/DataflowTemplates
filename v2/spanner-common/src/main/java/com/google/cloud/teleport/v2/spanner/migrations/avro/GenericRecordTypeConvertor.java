@@ -413,7 +413,8 @@ public class GenericRecordTypeConvertor {
    * not a union, or if it's a union with more than two types or a non-nullable type other than
    * NULL, an IllegalArgumentException is thrown.
    */
-  private Schema filterNullSchema(Schema fieldSchema, String recordColName, Object recordValue) {
+  public static Schema filterNullSchema(
+      Schema fieldSchema, String recordColName, Object recordValue) {
     if (fieldSchema.getType().equals(Schema.Type.UNION)) {
       List<Schema> types = fieldSchema.getTypes();
       LOG.debug("found union type: {}", types);
@@ -443,7 +444,7 @@ public class GenericRecordTypeConvertor {
    * @return The processed value of the field, potentially transformed according to its complex
    *     type.
    */
-  private static Object handleNonPrimitiveAvroTypes(
+  static Object handleNonPrimitiveAvroTypes(
       Object recordValue,
       Schema fieldSchema,
       String recordColName,
@@ -472,7 +473,7 @@ public class GenericRecordTypeConvertor {
    * @return The processed value of the field, potentially transformed according to its complex
    *     type.
    */
-  static Object handleArrayAvroTypes(
+  public static Object handleArrayAvroTypes(
       Object recordValue,
       Schema fieldSchema,
       String recordColName,
@@ -539,7 +540,7 @@ public class GenericRecordTypeConvertor {
   }
 
   /** Avro logical types are converted to an equivalent string type. */
-  static String handleLogicalFieldType(
+  public static String handleLogicalFieldType(
       String fieldName,
       Object recordValue,
       Schema fieldSchema,
@@ -626,7 +627,8 @@ public class GenericRecordTypeConvertor {
   }
 
   /** Record field types are converted to an equivalent string type. */
-  static String handleRecordFieldType(String fieldName, GenericRecord element, Schema fieldSchema) {
+  public static String handleRecordFieldType(
+      String fieldName, GenericRecord element, Schema fieldSchema) {
     LOG.debug("found record type for col {} with schema: {}", fieldName, fieldSchema);
     if (element == null) {
       return null;

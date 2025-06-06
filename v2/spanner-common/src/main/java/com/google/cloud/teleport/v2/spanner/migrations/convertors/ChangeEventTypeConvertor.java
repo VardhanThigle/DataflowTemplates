@@ -29,6 +29,9 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.regex.Pattern;
+import org.apache.avro.LogicalTypes;
+import org.apache.avro.Schema;
+import org.apache.avro.data.TimeConversions;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 
@@ -248,6 +251,14 @@ public class ChangeEventTypeConvertor {
     return java.sql.Date.valueOf(localDate);
   }
 
+  private static java.util.Date parseAvroLogicalDate(String date) {
+    TimeConversions.DateConversion dateConversion = new TimeConversions.DateConversion();
+    LocalDate localDate =
+        dateConversion.fromInt(
+            Integer.valueOf(date), Schema.create(Schema.Type.INT), LogicalTypes.date());
+    return java.sql.Date.valueOf(localDate);
+  }
+
   private static ZonedDateTime convertToZonedDateTime(String timestamp) {
     ZonedDateTime zonedDateTime;
     try {
@@ -276,11 +287,19 @@ public class ChangeEventTypeConvertor {
     try {
       return parseDate(date);
     } catch (DateTimeParseException e) {
-      /* Exception due to wrong format. Try parsing as Timestamp and extract date.
-       * Datastream may have chosen to map date field as timestamp.
-       */
-      ZonedDateTime zonedDateTime = convertToZonedDateTime(date);
-      return parseDate(zonedDateTime.format(DATASTREAM_DATE_FORMATTER));
+      try {
+        /* Exception due to wrong format. Try parsing as Timestamp and extract date.
+         * Datastream may have chosen to map date field as timestamp.
+         */
+        ZonedDateTime zonedDateTime = convertToZonedDateTime(date);
+        return parseDate(zonedDateTime.format(DATASTREAM_DATE_FORMATTER));
+      } catch (DateTimeParseException ex) {
+        // Try Local Date for types like Cassandra date which come w/o any time component.
+        /* Avro Logical Date is represented as Integer */
+        /* Ref https://cloud.google.com/datastream/docs/unified-types */
+        // TODO.
+        return parseAvroLogicalDate(date);
+      }
     }
   }
 

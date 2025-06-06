@@ -26,6 +26,8 @@ import com.google.cloud.teleport.v2.source.reader.io.row.SourceRow;
 import com.google.cloud.teleport.v2.source.reader.io.schema.SchemaTestUtils;
 import com.google.cloud.teleport.v2.source.reader.io.schema.SourceTableSchema;
 import com.google.cloud.teleport.v2.spanner.ddl.Ddl;
+import com.google.cloud.teleport.v2.spanner.migrations.schema.ISchemaMapper;
+import com.google.cloud.teleport.v2.spanner.migrations.schema.IdentityMapper;
 import com.google.cloud.teleport.v2.templates.RowContext;
 import com.google.cloud.teleport.v2.transforms.DLQWriteTransform.WriteDLQ;
 import com.google.cloud.teleport.v2.values.FailsafeElement;
@@ -81,7 +83,12 @@ public class DeadLetterQueueTest {
   @Test
   public void testCreateGCSDLQ() {
     DeadLetterQueue dlq =
-        DeadLetterQueue.create("testDir", spannerDdl, new HashMap<>(), SQLDialect.MYSQL);
+        DeadLetterQueue.create(
+            "testDir",
+            spannerDdl,
+            new HashMap<>(),
+            SQLDialect.MYSQL,
+            getIdentityMapper(spannerDdl));
     assertEquals("testDir", dlq.getDlqDirectory());
 
     assertTrue(dlq.getDlqTransform() instanceof WriteDLQ);
@@ -92,7 +99,12 @@ public class DeadLetterQueueTest {
   @Test
   public void testCreateLogDlq() {
     DeadLetterQueue dlq =
-        DeadLetterQueue.create("LOG", spannerDdl, new HashMap<>(), SQLDialect.POSTGRESQL);
+        DeadLetterQueue.create(
+            "LOG",
+            spannerDdl,
+            new HashMap<>(),
+            SQLDialect.POSTGRESQL,
+            getIdentityMapper(spannerDdl));
     assertEquals("LOG", dlq.getDlqDirectory());
     assertTrue(dlq.getDlqTransform() instanceof DeadLetterQueue.WriteToLog);
   }
@@ -100,20 +112,24 @@ public class DeadLetterQueueTest {
   @Test
   public void testCreateIgnoreDlq() {
     DeadLetterQueue dlq =
-        DeadLetterQueue.create("IGNORE", spannerDdl, new HashMap<>(), SQLDialect.MYSQL);
+        DeadLetterQueue.create(
+            "IGNORE", spannerDdl, new HashMap<>(), SQLDialect.MYSQL, getIdentityMapper(spannerDdl));
     assertEquals("IGNORE", dlq.getDlqDirectory());
     assertNull(dlq.getDlqTransform());
   }
 
   @Test(expected = RuntimeException.class)
   public void testNoDlqDirectory() {
-    DeadLetterQueue.create(null, spannerDdl, new HashMap<>(), SQLDialect.MYSQL).getDlqDirectory();
+    DeadLetterQueue.create(
+            null, spannerDdl, new HashMap<>(), SQLDialect.MYSQL, getIdentityMapper(spannerDdl))
+        .getDlqDirectory();
   }
 
   @Test
   public void testFilteredRowsToLog() {
     DeadLetterQueue dlq =
-        DeadLetterQueue.create("LOG", spannerDdl, new HashMap<>(), SQLDialect.MYSQL);
+        DeadLetterQueue.create(
+            "LOG", spannerDdl, new HashMap<>(), SQLDialect.MYSQL, getIdentityMapper(spannerDdl));
     final String testTable = "srcTable";
     var schemaRef = SchemaTestUtils.generateSchemaReference("public", "mydb");
     SourceTableSchema schema = SchemaTestUtils.generateTestTableSchema(testTable);
@@ -141,7 +157,12 @@ public class DeadLetterQueueTest {
   @Test
   public void testFailedRowsToLog() {
     DeadLetterQueue dlq =
-        DeadLetterQueue.create("LOG", spannerDdl, new HashMap<>(), SQLDialect.POSTGRESQL);
+        DeadLetterQueue.create(
+            "LOG",
+            spannerDdl,
+            new HashMap<>(),
+            SQLDialect.POSTGRESQL,
+            getIdentityMapper(spannerDdl));
     final String testTable = "srcTable";
     var schemaRef = SchemaTestUtils.generateSchemaReference("public", "mydb");
     SourceTableSchema schema = SchemaTestUtils.generateTestTableSchema(testTable);
@@ -174,7 +195,12 @@ public class DeadLetterQueueTest {
 
     Map<String, String> srcTableToShardId = Map.of(testTable, "migration_id");
     DeadLetterQueue dlq =
-        DeadLetterQueue.create("testDir", spannerDdl, srcTableToShardId, SQLDialect.MYSQL);
+        DeadLetterQueue.create(
+            "testDir",
+            spannerDdl,
+            srcTableToShardId,
+            SQLDialect.MYSQL,
+            getIdentityMapper(spannerDdl));
 
     RowContext r1 =
         RowContext.builder()
@@ -203,7 +229,12 @@ public class DeadLetterQueueTest {
     var schemaRef = SchemaTestUtils.generateSchemaReference("public", "mydb");
     SourceTableSchema schema = SchemaTestUtils.generateTestTableSchema("nonExistentTable");
     DeadLetterQueue dlq =
-        DeadLetterQueue.create("testDir", spannerDdl, new HashMap<>(), SQLDialect.MYSQL);
+        DeadLetterQueue.create(
+            "testDir",
+            spannerDdl,
+            new HashMap<>(),
+            SQLDialect.MYSQL,
+            getIdentityMapper(spannerDdl));
 
     RowContext r1 =
         RowContext.builder()
@@ -226,7 +257,12 @@ public class DeadLetterQueueTest {
     SourceTableSchema schema = SchemaTestUtils.generateTestTableSchema(testTable);
 
     DeadLetterQueue dlq =
-        DeadLetterQueue.create("testDir", spannerDdl, new HashMap<>(), SQLDialect.POSTGRESQL);
+        DeadLetterQueue.create(
+            "testDir",
+            spannerDdl,
+            new HashMap<>(),
+            SQLDialect.POSTGRESQL,
+            getIdentityMapper(spannerDdl));
 
     RowContext r1 =
         RowContext.builder()
@@ -250,7 +286,12 @@ public class DeadLetterQueueTest {
   @Test
   public void testMutationToDlqElement() {
     DeadLetterQueue dlq =
-        DeadLetterQueue.create("testDir", spannerDdl, new HashMap<>(), SQLDialect.MYSQL);
+        DeadLetterQueue.create(
+            "testDir",
+            spannerDdl,
+            new HashMap<>(),
+            SQLDialect.MYSQL,
+            getIdentityMapper(spannerDdl));
     Mutation m =
         Mutation.newInsertOrUpdateBuilder("srcTable")
             .set("firstName")
@@ -263,5 +304,9 @@ public class DeadLetterQueueTest {
     assertTrue(dlqElement.getOriginalPayload().contains("\"_metadata_table\":\"srcTable\""));
     assertTrue(dlqElement.getOriginalPayload().contains("\"firstName\":\"abc\""));
     assertTrue(dlqElement.getOriginalPayload().contains("\"lastName\":\"def\""));
+  }
+
+  private static ISchemaMapper getIdentityMapper(Ddl spannerDdl) {
+    return new IdentityMapper(spannerDdl);
   }
 }
