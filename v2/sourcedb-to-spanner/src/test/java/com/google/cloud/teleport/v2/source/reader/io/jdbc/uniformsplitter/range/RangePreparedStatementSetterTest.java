@@ -118,6 +118,7 @@ public class RangePreparedStatementSetterTest {
     Range singleColNonLastRange =
         Range.<Integer>builder()
             .setBoundarySplitter(BoundarySplitterFactory.create(Integer.class))
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setColName("col1")
             .setColClass(Integer.class)
             .setStart(10)
@@ -157,6 +158,7 @@ public class RangePreparedStatementSetterTest {
 
     Range bothColRange =
         Range.<Integer>builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setBoundarySplitter(BoundarySplitterFactory.create(Integer.class))
             .setColName("col1")
             .setColClass(Integer.class)
@@ -166,6 +168,7 @@ public class RangePreparedStatementSetterTest {
             .build()
             .withChildRange(
                 Range.<Integer>builder()
+                    .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
                     .setBoundarySplitter(BoundarySplitterFactory.create(Integer.class))
                     .setColName("col2")
                     .setColClass(Integer.class)

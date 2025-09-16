@@ -120,6 +120,7 @@ public abstract class RangeClassifierDoFn extends DoFn<ImmutableList<Range>, Ran
             PartitionColumn newColumn = partitionColumns().get((int) (range.height() + 1));
             ColumnForBoundaryQuery columnForBoundaryQuery =
                 ColumnForBoundaryQuery.builder()
+                    .setTableIdentifier(range.tableIdentifier())
                     .setPartitionColumn(newColumn)
                     .setParentRange(range)
                     .build();

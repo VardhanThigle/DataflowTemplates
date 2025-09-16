@@ -99,7 +99,7 @@ final class RangeBoundaryDoFn extends DoFn<ColumnForBoundaryQuery, Range> implem
       ResultSet rs = stmt.executeQuery();
       Range output =
           BoundaryExtractorFactory.create(input.columnClass())
-              .getBoundary(input.partitionColumn(), rs, boundaryTypeMapper)
+              .getBoundary(input.partitionColumn(), rs, boundaryTypeMapper, input.tableIdentifier())
               .toRange(input.parentRange(), c);
       logger.debug(
           "Got Boundary, Input = {}, Range = {}, Query = {}, DataSource = {}",

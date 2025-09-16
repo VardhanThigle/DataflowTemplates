@@ -22,6 +22,7 @@ import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.column
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.BoundarySplitterFactory;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.PartitionColumn;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.Range;
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.TableIdentifier;
 import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
 import org.apache.beam.sdk.values.TupleTag;
@@ -49,6 +50,7 @@ public class RangeClassifierDoFnTest {
         .output(any(), any());
     Range rangeToRetainDueToCount =
         Range.builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setColName("col1")
             .setColClass(Integer.class)
             .setBoundarySplitter(BoundarySplitterFactory.create(Integer.class))
@@ -58,6 +60,7 @@ public class RangeClassifierDoFnTest {
             .build();
     Range rangeToSplit =
         Range.builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setColName("col1")
             .setColClass(Integer.class)
             .setBoundarySplitter(BoundarySplitterFactory.create(Integer.class))
@@ -67,6 +70,7 @@ public class RangeClassifierDoFnTest {
             .build();
     Range rangeToAddColumn =
         Range.builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setColName("col1")
             .setColClass(Integer.class)
             .setBoundarySplitter(BoundarySplitterFactory.create(Integer.class))
@@ -77,6 +81,7 @@ public class RangeClassifierDoFnTest {
 
     Range rangeToRetainUnSplitable =
         Range.builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setColName("col1")
             .setColClass(Integer.class)
             .setBoundarySplitter(BoundarySplitterFactory.create(Integer.class))
@@ -85,6 +90,7 @@ public class RangeClassifierDoFnTest {
             .build()
             .withChildRange(
                 Range.builder()
+                    .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
                     .setColName("col2")
                     .setColClass(Integer.class)
                     .setBoundarySplitter(BoundarySplitterFactory.create(Integer.class))
@@ -125,6 +131,7 @@ public class RangeClassifierDoFnTest {
         .isEqualTo(
             ImmutableList.of(
                 ColumnForBoundaryQuery.builder()
+                    .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
                     .setColumnName("col2")
                     .setColumnClass(Integer.class)
                     .setParentRange(rangeToAddColumn)
@@ -142,6 +149,7 @@ public class RangeClassifierDoFnTest {
         .output(any(), any());
     Range rangeToRetainDueToCount =
         Range.builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setColName("col1")
             .setColClass(Integer.class)
             .setBoundarySplitter(BoundarySplitterFactory.create(Integer.class))
@@ -152,6 +160,7 @@ public class RangeClassifierDoFnTest {
     // Here, the code auto-adjusts to 5 partitions
     Range rangeToRetainAndNotSplit =
         Range.builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setColName("col1")
             .setColClass(Integer.class)
             .setBoundarySplitter(BoundarySplitterFactory.create(Integer.class))
@@ -161,6 +170,7 @@ public class RangeClassifierDoFnTest {
             .build();
     Range rangeToRetainNotAddColumn =
         Range.builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setColName("col1")
             .setColClass(Integer.class)
             .setBoundarySplitter(BoundarySplitterFactory.create(Integer.class))
@@ -171,6 +181,7 @@ public class RangeClassifierDoFnTest {
 
     Range rangeToRetainUnSplitable =
         Range.builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setColName("col1")
             .setColClass(Integer.class)
             .setBoundarySplitter(BoundarySplitterFactory.create(Integer.class))
@@ -179,6 +190,7 @@ public class RangeClassifierDoFnTest {
             .build()
             .withChildRange(
                 Range.builder()
+                    .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
                     .setColName("col2")
                     .setColClass(Integer.class)
                     .setBoundarySplitter(BoundarySplitterFactory.create(Integer.class))
@@ -236,6 +248,7 @@ public class RangeClassifierDoFnTest {
         .output(any(), any());
     Range rangeToCount =
         Range.builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setColName("col1")
             .setColClass(Integer.class)
             .setBoundarySplitter(BoundarySplitterFactory.create(Integer.class))

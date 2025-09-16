@@ -30,6 +30,7 @@ import com.google.cloud.teleport.v2.source.reader.io.jdbc.dialectadapter.mysql.M
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.dialectadapter.mysql.MysqlDialectAdapter.MySqlVersion;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.BoundarySplitterFactory;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.Range;
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.TableIdentifier;
 import com.google.common.collect.ImmutableList;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -86,6 +87,7 @@ public class RangeCountDoFnTest {
             ImmutableList.of("col1"));
     Range input =
         Range.<Integer>builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setColName("col1")
             .setColClass(Integer.class)
             .setBoundarySplitter(BoundarySplitterFactory.create(Integer.class))
@@ -126,6 +128,7 @@ public class RangeCountDoFnTest {
             ImmutableList.of("col1"));
     Range input =
         Range.<Integer>builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setColName("col1")
             .setColClass(Integer.class)
             .setBoundarySplitter(BoundarySplitterFactory.create(Integer.class))
@@ -163,6 +166,7 @@ public class RangeCountDoFnTest {
             ImmutableList.of("col1"));
     Range input =
         Range.<Integer>builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setColName("col1")
             .setColClass(Integer.class)
             .setBoundarySplitter(BoundarySplitterFactory.create(Integer.class))
@@ -197,6 +201,7 @@ public class RangeCountDoFnTest {
             ImmutableList.of("col1"));
     Range input =
         Range.<Integer>builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setColName("col1")
             .setColClass(Integer.class)
             .setBoundarySplitter(BoundarySplitterFactory.create(Integer.class))

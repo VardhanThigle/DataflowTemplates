@@ -21,6 +21,7 @@ import static org.mockito.Mockito.verify;
 
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.BoundarySplitterFactory;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.Range;
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.TableIdentifier;
 import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
@@ -45,6 +46,7 @@ public class InitialSplitRangeDoFnTest {
         InitialSplitRangeDoFn.builder().setSplitHeight(5).setTableName("testTable").build();
     Range range =
         Range.builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setColName("col1")
             .setStart(0)
             .setEnd(5)
@@ -59,6 +61,7 @@ public class InitialSplitRangeDoFnTest {
     ImmutableList<Range> actualRanges = rangeCaptor.getValue();
     assertThat(actualRanges.size()).isEqualTo(5);
     for (int i = 0; i < 5; i++) {
+      assertThat(actualRanges.get(i).tableIdentifier().tableName()).isEqualTo("testTable");
       assertThat(actualRanges.get(i).start()).isEqualTo(i);
       assertThat(actualRanges.get(i).end()).isEqualTo(i + 1);
       if (i == 0) {

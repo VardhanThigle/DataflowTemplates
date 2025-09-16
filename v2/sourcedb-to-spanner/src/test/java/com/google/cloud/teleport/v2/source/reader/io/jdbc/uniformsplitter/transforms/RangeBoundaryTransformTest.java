@@ -21,6 +21,7 @@ import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.column
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.BoundarySplitterFactory;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.Range;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.RangePreparedStatementSetter;
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.TableIdentifier;
 import com.google.common.collect.ImmutableList;
 import java.sql.SQLException;
 import javax.sql.DataSource;
@@ -63,11 +64,13 @@ public class RangeBoundaryTransformTest {
 
     ColumnForBoundaryQuery firstColumnForBoundaryQuery =
         ColumnForBoundaryQuery.builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setColumnName("col1")
             .setColumnClass(Integer.class)
             .build();
     Range fullCol1Range =
         Range.builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setColName("col1")
             .setColClass(Integer.class)
             .setBoundarySplitter(BoundarySplitterFactory.create(Integer.class))
@@ -79,6 +82,7 @@ public class RangeBoundaryTransformTest {
 
     Range unSplitableCol1Range =
         Range.builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setColName("col1")
             .setColClass(Integer.class)
             .setBoundarySplitter(BoundarySplitterFactory.create(Integer.class))
@@ -89,6 +93,7 @@ public class RangeBoundaryTransformTest {
             .build();
     ColumnForBoundaryQuery secondColumnForBoundaryQuery =
         ColumnForBoundaryQuery.builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setColumnName("col2")
             .setColumnClass(Integer.class)
             .setParentRange(unSplitableCol1Range)
@@ -96,6 +101,7 @@ public class RangeBoundaryTransformTest {
     Range col2Range =
         unSplitableCol1Range.withChildRange(
             Range.builder()
+                .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
                 .setColName("col2")
                 .setColClass(Integer.class)
                 .setBoundarySplitter(BoundarySplitterFactory.create(Integer.class))

@@ -92,6 +92,10 @@ public abstract class Range implements Serializable, Comparable<Range> {
     return this.boundary().end();
   }
 
+  public TableIdentifier tableIdentifier() {
+    return this.boundary().tableIdentifier();
+  }
+
   /**
    * @return builder for {@link Range}.
    */
@@ -249,6 +253,9 @@ public abstract class Range implements Serializable, Comparable<Range> {
       }
       return this.childRange().isMergable(other.childRange());
     } else {
+      if (!this.boundary().tableIdentifier().equals(other.boundary().tableIdentifier())) {
+        return false;
+      }
       return Objects.equal(this.end(), other.start()) || Objects.equal(this.start(), other.end());
     }
   }
@@ -404,6 +411,11 @@ public abstract class Range implements Serializable, Comparable<Range> {
     public <T extends Serializable> Builder setBoundarySplitter(
         BoundarySplitter<T> boundarySplitter) {
       this.boundaryBuilder().setBoundarySplitter(boundarySplitter);
+      return this;
+    }
+
+    public <T extends Serializable> Builder setTableIdentifier(TableIdentifier tableIdentifier) {
+      this.boundaryBuilder().setTableIdentifier(tableIdentifier);
       return this;
     }
 

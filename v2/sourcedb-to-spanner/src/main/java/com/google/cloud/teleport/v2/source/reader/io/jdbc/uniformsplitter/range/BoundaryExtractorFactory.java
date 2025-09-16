@@ -35,27 +35,35 @@ public class BoundaryExtractorFactory {
           .put(
               Integer.class,
               (BoundaryExtractor<Integer>)
-                  (partitionColumn, resultSet, boundaryTypeMapper) ->
-                      fromIntegers(partitionColumn, resultSet, boundaryTypeMapper))
+                  (partitionColumn, resultSet, boundaryTypeMapper, tableIdentifier) ->
+                      fromIntegers(partitionColumn, resultSet, boundaryTypeMapper, tableIdentifier))
           .put(
               Long.class,
               (BoundaryExtractor<Long>)
-                  (partitionColumn, resultSet, boundaryTypeMapper) ->
-                      fromLongs(partitionColumn, resultSet, boundaryTypeMapper))
-          .put(String.class, (BoundaryExtractor<String>) BoundaryExtractorFactory::fromStrings)
+                  (partitionColumn, resultSet, boundaryTypeMapper, tableIdentifier) ->
+                      fromLongs(partitionColumn, resultSet, boundaryTypeMapper, tableIdentifier))
+          .put(
+              String.class,
+              (BoundaryExtractor<String>)
+                  (partitionColumn, resultSet, boundaryTypeMapper, tableIdentifier) ->
+                      fromStrings(partitionColumn, resultSet, boundaryTypeMapper, tableIdentifier))
           .put(
               BigDecimal.class,
               (BoundaryExtractor<BigDecimal>)
-                  (partitionColumn, resultSet, boundaryTypeMapper) ->
-                      fromBigDecimals(partitionColumn, resultSet, boundaryTypeMapper))
+                  (partitionColumn, resultSet, boundaryTypeMapper, tableIdentifier) ->
+                      fromBigDecimals(
+                          partitionColumn, resultSet, boundaryTypeMapper, tableIdentifier))
           .put(
               BYTE_ARRAY_CLASS,
               (BoundaryExtractor<byte[]>)
-                  (partitionColumn, resultSet, boundaryTypeMapper) ->
-                      fromBinary(partitionColumn, resultSet, boundaryTypeMapper))
+                  (partitionColumn, resultSet, boundaryTypeMapper, tableIdentifier) ->
+                      fromBinary(partitionColumn, resultSet, boundaryTypeMapper, tableIdentifier))
           .put(
               Timestamp.class,
-              (BoundaryExtractor<Timestamp>) BoundaryExtractorFactory::fromTimestamps)
+              (BoundaryExtractor<Timestamp>)
+                  (partitionColumn, resultSet, boundaryTypeMapper, tableIdentifier) ->
+                      fromTimestamps(
+                          partitionColumn, resultSet, boundaryTypeMapper, tableIdentifier))
           .build();
 
   /**
@@ -76,11 +84,13 @@ public class BoundaryExtractorFactory {
   private static Boundary<Integer> fromIntegers(
       PartitionColumn partitionColumn,
       ResultSet resultSet,
-      @Nullable BoundaryTypeMapper boundaryTypeMapper)
+      @Nullable BoundaryTypeMapper boundaryTypeMapper,
+      TableIdentifier tableIdentifier)
       throws SQLException {
     Preconditions.checkArgument(partitionColumn.columnClass().equals(Integer.class));
     resultSet.next();
     return Boundary.<Integer>builder()
+        .setTableIdentifier(tableIdentifier)
         .setPartitionColumn(partitionColumn)
         .setStart(resultSet.getInt(1))
         .setEnd(resultSet.getInt(2))
@@ -92,11 +102,13 @@ public class BoundaryExtractorFactory {
   private static Boundary<Long> fromLongs(
       PartitionColumn partitionColumn,
       ResultSet resultSet,
-      @Nullable BoundaryTypeMapper boundaryTypeMapper)
+      @Nullable BoundaryTypeMapper boundaryTypeMapper,
+      TableIdentifier tableIdentifier)
       throws SQLException {
     Preconditions.checkArgument(partitionColumn.columnClass().equals(Long.class));
     resultSet.next();
     return Boundary.<Long>builder()
+        .setTableIdentifier(tableIdentifier)
         .setPartitionColumn(partitionColumn)
         .setStart(resultSet.getLong(1))
         .setEnd(resultSet.getLong(2))
@@ -108,13 +120,15 @@ public class BoundaryExtractorFactory {
   private static Boundary<BigDecimal> fromBigDecimals(
       PartitionColumn partitionColumn,
       ResultSet resultSet,
-      @Nullable BoundaryTypeMapper boundaryTypeMapper)
+      @Nullable BoundaryTypeMapper boundaryTypeMapper,
+      TableIdentifier tableIdentifier)
       throws SQLException {
     Preconditions.checkArgument(partitionColumn.columnClass().equals(BigDecimal.class));
     resultSet.next();
     BigDecimal start = resultSet.getBigDecimal(1);
     BigDecimal end = resultSet.getBigDecimal(2);
     return Boundary.<BigDecimal>builder()
+        .setTableIdentifier(tableIdentifier)
         .setPartitionColumn(partitionColumn)
         .setStart(start)
         .setEnd(end)
@@ -126,13 +140,15 @@ public class BoundaryExtractorFactory {
   private static Boundary<byte[]> fromBinary(
       PartitionColumn partitionColumn,
       ResultSet resultSet,
-      @Nullable BoundaryTypeMapper boundaryTypeMapper)
+      @Nullable BoundaryTypeMapper boundaryTypeMapper,
+      TableIdentifier tableIdentifier)
       throws SQLException {
     Preconditions.checkArgument(partitionColumn.columnClass().equals(BYTE_ARRAY_CLASS));
     resultSet.next();
     byte[] start = resultSet.getBytes(1);
     byte[] end = resultSet.getBytes(2);
     return Boundary.<byte[]>builder()
+        .setTableIdentifier(tableIdentifier)
         .setPartitionColumn(partitionColumn)
         .setStart(start)
         .setEnd(end)
@@ -144,7 +160,8 @@ public class BoundaryExtractorFactory {
   private static Boundary<String> fromStrings(
       PartitionColumn partitionColumn,
       ResultSet resultSet,
-      @Nullable BoundaryTypeMapper boundaryTypeMapper)
+      @Nullable BoundaryTypeMapper boundaryTypeMapper,
+      TableIdentifier tableIdentifier)
       throws SQLException {
     Preconditions.checkArgument(partitionColumn.columnClass().equals(String.class));
     Preconditions.checkArgument(
@@ -152,6 +169,7 @@ public class BoundaryExtractorFactory {
         "String extractor needs boundaryTypeMapper. PartitionColumn = " + partitionColumn);
     resultSet.next();
     return Boundary.<String>builder()
+        .setTableIdentifier(tableIdentifier)
         .setPartitionColumn(partitionColumn)
         .setStart(resultSet.getString(1))
         .setEnd(resultSet.getString(2))
@@ -165,11 +183,13 @@ public class BoundaryExtractorFactory {
   private static Boundary<Timestamp> fromTimestamps(
       PartitionColumn partitionColumn,
       ResultSet resultSet,
-      @Nullable BoundaryTypeMapper boundaryTypeMapper)
+      @Nullable BoundaryTypeMapper boundaryTypeMapper,
+      TableIdentifier tableIdentifier)
       throws SQLException {
     Preconditions.checkArgument(partitionColumn.columnClass().equals(Timestamp.class));
     resultSet.next();
     return Boundary.<Timestamp>builder()
+        .setTableIdentifier(tableIdentifier)
         .setPartitionColumn(partitionColumn)
         .setStart(resultSet.getTimestamp(1, utcCalendar))
         .setEnd(resultSet.getTimestamp(2, utcCalendar))

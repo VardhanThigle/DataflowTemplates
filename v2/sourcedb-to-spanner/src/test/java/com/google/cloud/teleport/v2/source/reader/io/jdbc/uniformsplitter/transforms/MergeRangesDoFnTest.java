@@ -20,6 +20,7 @@ import static org.mockito.Mockito.verify;
 
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.BoundarySplitterFactory;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.Range;
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.TableIdentifier;
 import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -107,6 +108,7 @@ public class MergeRangesDoFnTest {
     Range testRange =
         dummyCounter(
             Range.builder()
+                .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
                 .setStart(0L)
                 .setEnd(64L)
                 .setBoundarySplitter(BoundarySplitterFactory.create(Long.class))

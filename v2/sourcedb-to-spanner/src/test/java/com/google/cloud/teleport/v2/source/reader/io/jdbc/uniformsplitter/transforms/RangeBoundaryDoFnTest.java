@@ -30,6 +30,7 @@ import com.google.cloud.teleport.v2.source.reader.io.jdbc.dialectadapter.mysql.M
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.columnboundary.ColumnForBoundaryQuery;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.BoundarySplitterFactory;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.Range;
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.TableIdentifier;
 import com.google.common.collect.ImmutableList;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -86,6 +87,7 @@ public class RangeBoundaryDoFnTest {
             null);
     ColumnForBoundaryQuery input =
         ColumnForBoundaryQuery.builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setColumnClass(Long.class)
             .setColumnName("col1")
             .setParentRange(null)
@@ -98,6 +100,7 @@ public class RangeBoundaryDoFnTest {
     assertThat(newRange)
         .isEqualTo(
             Range.builder()
+                .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
                 .setStart(0L)
                 .setEnd(42L)
                 .setBoundarySplitter(BoundarySplitterFactory.create(Long.class))
@@ -125,6 +128,7 @@ public class RangeBoundaryDoFnTest {
             null);
     ColumnForBoundaryQuery input =
         ColumnForBoundaryQuery.builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setColumnClass(Long.class)
             .setColumnName("col1")
             .setParentRange(null)

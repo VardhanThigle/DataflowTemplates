@@ -44,6 +44,7 @@ import com.google.cloud.teleport.v2.source.reader.io.jdbc.dialectadapter.mysql.M
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.BoundarySplitterFactory;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.PartitionColumn;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.Range;
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.TableIdentifier;
 import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.sql.ResultSet;
@@ -174,6 +175,7 @@ public class ReadWithUniformPartitionsTest implements Serializable {
 
     Range firstRead =
         Range.builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setColName("col1")
             .setColClass(Integer.class)
             .setStart(25)
@@ -286,6 +288,7 @@ public class ReadWithUniformPartitionsTest implements Serializable {
   public void testMaxPartitionAutoInferencePreConditions() {
     Range initialRangeWithWrongColumChild =
         Range.builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setColName("wrongCol")
             .setColClass(Integer.class)
             .setStart(0)
@@ -294,6 +297,7 @@ public class ReadWithUniformPartitionsTest implements Serializable {
             .build();
     Range initialRange =
         Range.builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setColName("col1")
             .setColClass(Integer.class)
             .setStart(42)

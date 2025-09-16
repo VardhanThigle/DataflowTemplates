@@ -21,6 +21,7 @@ import com.google.cloud.teleport.v2.source.reader.io.jdbc.dialectadapter.mysql.M
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.dialectadapter.mysql.MysqlDialectAdapter.MySqlVersion;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.BoundarySplitterFactory;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.Range;
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.TableIdentifier;
 import com.google.common.collect.ImmutableList;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -105,15 +106,18 @@ public class ColumnForBoundaryQueryPreparedStatementSetterTest {
 
     ColumnForBoundaryQuery initialColumn =
         ColumnForBoundaryQuery.builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setColumnName("col1")
             .setColumnClass(Integer.class)
             .build();
     ColumnForBoundaryQuery columnWithinRange =
         ColumnForBoundaryQuery.builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setColumnName("col2")
             .setColumnClass(Integer.class)
             .setParentRange(
                 Range.<Integer>builder()
+                    .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
                     .setBoundarySplitter(BoundarySplitterFactory.create(Integer.class))
                     .setColName("col1")
                     .setColClass(Integer.class)

@@ -20,6 +20,7 @@ import com.google.cloud.teleport.v2.source.reader.io.jdbc.dialectadapter.mysql.M
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.BoundarySplitterFactory;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.Range;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.RangePreparedStatementSetter;
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.TableIdentifier;
 import com.google.common.collect.ImmutableList;
 import java.sql.SQLException;
 import javax.sql.DataSource;
@@ -62,6 +63,7 @@ public class RangeCountTransformTest {
 
     Range singleColNonLastRange =
         Range.<Integer>builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setBoundarySplitter(BoundarySplitterFactory.create(Integer.class))
             .setColName("col1")
             .setColClass(Integer.class)
@@ -71,6 +73,7 @@ public class RangeCountTransformTest {
             .build();
     Range bothColRange =
         Range.<Integer>builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .setBoundarySplitter(BoundarySplitterFactory.create(Integer.class))
             .setColName("col1")
             .setColClass(Integer.class)
@@ -80,6 +83,7 @@ public class RangeCountTransformTest {
             .build()
             .withChildRange(
                 Range.<Integer>builder()
+                    .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
                     .setBoundarySplitter(BoundarySplitterFactory.create(Integer.class))
                     .setColName("col2")
                     .setColClass(Integer.class)

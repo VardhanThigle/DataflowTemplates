@@ -22,6 +22,7 @@ import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.PartitionColumn;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.Range;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.RangePreparedStatementSetter;
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.TableIdentifier;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.stringmapper.BoundaryTypeMapperImpl;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.stringmapper.CollationMapper;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.stringmapper.CollationReference;
@@ -312,6 +313,7 @@ public abstract class ReadWithUniformPartitions<T> extends PTransform<PBegin, PC
     if (initialRange() == null) {
       ColumnForBoundaryQuery initialColumn =
           ColumnForBoundaryQuery.builder()
+              .setTableIdentifier(TableIdentifier.builder().setTableName(tableName()).build())
               .setPartitionColumn(partitionColumns().get(0))
               .setParentRange(null)
               .build();
