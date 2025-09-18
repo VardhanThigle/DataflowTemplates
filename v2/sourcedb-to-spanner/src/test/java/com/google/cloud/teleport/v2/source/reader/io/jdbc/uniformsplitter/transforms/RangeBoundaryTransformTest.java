@@ -19,9 +19,11 @@ import com.google.cloud.teleport.v2.source.reader.io.jdbc.dialectadapter.mysql.M
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.dialectadapter.mysql.MysqlDialectAdapter.MySqlVersion;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.columnboundary.ColumnForBoundaryQuery;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.BoundarySplitterFactory;
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.PartitionColumn;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.Range;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.RangePreparedStatementSetter;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.TableIdentifier;
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.TableSplitSpecification;
 import com.google.common.collect.ImmutableList;
 import java.sql.SQLException;
 import javax.sql.DataSource;
@@ -118,9 +120,20 @@ public class RangeBoundaryTransformTest {
     RangeBoundaryTransform rangeBoundaryTransform =
         RangeBoundaryTransform.builder()
             .setDbAdapter(new MysqlDialectAdapter(MySqlVersion.DEFAULT))
-            .setPartitionColumns(partitionCols)
+            .setTableSplitSpecification(
+                TableSplitSpecification.builder()
+                    .setTableIdentifier(TableIdentifier.builder().setTableName(tableName).build())
+                    .setPartitionColumns(
+                        partitionCols.stream()
+                            .map(
+                                c ->
+                                    PartitionColumn.builder()
+                                        .setColumnName(c)
+                                        .setColumnClass(Long.class)
+                                        .build())
+                            .collect(ImmutableList.toImmutableList()))
+                    .build())
             .setDataSourceProviderFn(dataSourceProviderFn)
-            .setTableName(tableName)
             .build();
     PCollection<Range> output = input.apply(rangeBoundaryTransform);
 

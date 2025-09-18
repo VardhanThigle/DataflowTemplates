@@ -17,7 +17,6 @@ package com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range
 
 import static com.google.common.truth.Truth.assertThat;
 
-import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.stringmapper.CollationReference;
 import com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;

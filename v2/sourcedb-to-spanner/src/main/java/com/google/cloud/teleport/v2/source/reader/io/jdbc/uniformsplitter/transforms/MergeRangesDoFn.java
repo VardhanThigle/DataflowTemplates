@@ -17,6 +17,7 @@ package com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.trans
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.Range;
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.TableIdentifier;
 import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.slf4j.Logger;
@@ -39,8 +40,8 @@ public abstract class MergeRangesDoFn extends DoFn<ImmutableList<Range>, Immutab
    */
   abstract Boolean autoAdjustMaxPartitions();
 
-  /** Name of the table. */
-  abstract String tableName();
+  /** Table Identifier. */
+  abstract TableIdentifier tableIdentifier();
 
   /**
    * Merge the ranges to get closer to the mean if possible. This DoFn applied at the end of the
@@ -75,7 +76,7 @@ public abstract class MergeRangesDoFn extends DoFn<ImmutableList<Range>, Immutab
 
     logger.info(
         "RWUPT - Began merging split-ranges for table {} initial split range count as {}",
-        tableName(),
+        tableIdentifier(),
         input.size());
 
     // TODO(vardhanvthigle): moving the total count clcuation to combiner will remove code
@@ -119,7 +120,7 @@ public abstract class MergeRangesDoFn extends DoFn<ImmutableList<Range>, Immutab
     // splitting process.
     logger.info(
         "RWUPT - Completed split process (merging) split-ranges for table {} initial split range count {}, final range count as {}",
-        tableName(),
+        tableIdentifier(),
         input.size(),
         output.size());
 
@@ -135,7 +136,7 @@ public abstract class MergeRangesDoFn extends DoFn<ImmutableList<Range>, Immutab
 
     public abstract Builder setAutoAdjustMaxPartitions(Boolean value);
 
-    public abstract Builder setTableName(String value);
+    public abstract Builder setTableIdentifier(TableIdentifier value);
 
     public abstract MergeRangesDoFn build();
   }

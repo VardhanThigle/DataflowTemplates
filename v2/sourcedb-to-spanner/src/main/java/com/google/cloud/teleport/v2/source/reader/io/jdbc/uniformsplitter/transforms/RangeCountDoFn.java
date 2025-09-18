@@ -21,6 +21,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.UniformSplitterDBAdapter;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.Range;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.RangePreparedStatementSetter;
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.TableSplitSpecification;
 import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.sql.Connection;
@@ -64,13 +65,18 @@ final class RangeCountDoFn extends DoFn<Range, Range> implements Serializable {
       SerializableFunction<Void, DataSource> dataSourceProviderFn,
       long timeoutMillis,
       UniformSplitterDBAdapter dbAdapter,
-      String tableNme,
-      ImmutableList<String> partitionColumns) {
+      TableSplitSpecification tableSplitSpecification) {
     this.dataSourceProviderFn = dataSourceProviderFn;
     this.timeoutMillis = timeoutMillis;
     this.dbAdapter = dbAdapter;
-    this.countQuery = dbAdapter.getCountQuery(tableNme, partitionColumns, timeoutMillis);
-    this.numColumns = partitionColumns.size();
+    this.countQuery =
+        dbAdapter.getCountQuery(
+            tableSplitSpecification.tableIdentifier().tableName(),
+            tableSplitSpecification.partitionColumns().stream()
+                .map(pc -> pc.columnName())
+                .collect(ImmutableList.toImmutableList()),
+            timeoutMillis);
+    this.numColumns = tableSplitSpecification.partitionColumns().size();
     this.dataSource = null;
   }
 

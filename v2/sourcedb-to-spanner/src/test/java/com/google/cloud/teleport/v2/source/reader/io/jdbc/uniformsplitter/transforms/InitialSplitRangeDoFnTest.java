@@ -43,7 +43,10 @@ public class InitialSplitRangeDoFnTest {
   public void testInitialSplitRangeBasic() {
 
     InitialSplitRangeDoFn initialSplitRangeDoFn =
-        InitialSplitRangeDoFn.builder().setSplitHeight(5).setTableName("testTable").build();
+        InitialSplitRangeDoFn.builder()
+            .setSplitHeight(5)
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
+            .build();
     Range range =
         Range.builder()
             .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())

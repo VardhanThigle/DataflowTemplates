@@ -29,8 +29,10 @@ import com.google.cloud.teleport.v2.source.reader.io.jdbc.dialectadapter.mysql.M
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.dialectadapter.mysql.MysqlDialectAdapter.MySqlVersion;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.columnboundary.ColumnForBoundaryQuery;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.BoundarySplitterFactory;
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.PartitionColumn;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.Range;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.TableIdentifier;
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.TableSplitSpecification;
 import com.google.common.collect.ImmutableList;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -82,8 +84,15 @@ public class RangeBoundaryDoFnTest {
         new RangeBoundaryDoFn(
             mockDataSourceProviderFn,
             new MysqlDialectAdapter(MySqlVersion.DEFAULT),
-            "testTable",
-            ImmutableList.of("col1"),
+            TableSplitSpecification.builder()
+                .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
+                .setPartitionColumns(
+                    ImmutableList.of(
+                        PartitionColumn.builder()
+                            .setColumnName("col1")
+                            .setColumnClass(Long.class)
+                            .build()))
+                .build(),
             null);
     ColumnForBoundaryQuery input =
         ColumnForBoundaryQuery.builder()
@@ -123,8 +132,15 @@ public class RangeBoundaryDoFnTest {
         new RangeBoundaryDoFn(
             mockDataSourceProviderFn,
             new MysqlDialectAdapter(MySqlVersion.DEFAULT),
-            "testTable",
-            ImmutableList.of("col1"),
+            TableSplitSpecification.builder()
+                .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
+                .setPartitionColumns(
+                    ImmutableList.of(
+                        PartitionColumn.builder()
+                            .setColumnName("col1")
+                            .setColumnClass(Long.class)
+                            .build()))
+                .build(),
             null);
     ColumnForBoundaryQuery input =
         ColumnForBoundaryQuery.builder()

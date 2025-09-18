@@ -19,7 +19,7 @@ import com.google.auto.value.AutoValue;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.UniformSplitterDBAdapter;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.BoundaryTypeMapper;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.Range;
-import com.google.common.collect.ImmutableList;
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.TableSplitSpecification;
 import java.io.Serializable;
 import javax.annotation.Nullable;
 import javax.sql.DataSource;
@@ -46,11 +46,8 @@ public abstract class RangeCountTransform extends PTransform<PCollection<Range>,
   /** Timeout of the count query in milliseconds. */
   abstract long timeoutMillis();
 
-  /** Name of the table. */
-  abstract String tableName();
-
-  /** List of partition columns. */
-  abstract ImmutableList<String> partitionColumns();
+  /** Specification for splitting the table. */
+  abstract TableSplitSpecification tableSplitSpecification();
 
   /** Type mapper to help map types like {@link String String.Class}. */
   @Nullable
@@ -61,11 +58,7 @@ public abstract class RangeCountTransform extends PTransform<PCollection<Range>,
     SingleOutput<Range, Range> parDo =
         ParDo.of(
             new RangeCountDoFn(
-                dataSourceProviderFn(),
-                timeoutMillis(),
-                dbAdapter(),
-                tableName(),
-                partitionColumns()));
+                dataSourceProviderFn(), timeoutMillis(), dbAdapter(), tableSplitSpecification()));
 
     if (boundaryTypeMapper() != null) {
       parDo = parDo.withSideInputs(boundaryTypeMapper().getCollationMapperView());
@@ -86,9 +79,7 @@ public abstract class RangeCountTransform extends PTransform<PCollection<Range>,
 
     public abstract Builder setTimeoutMillis(long value);
 
-    public abstract Builder setTableName(String value);
-
-    public abstract Builder setPartitionColumns(ImmutableList<String> value);
+    public abstract Builder setTableSplitSpecification(TableSplitSpecification value);
 
     public abstract Builder setBoundaryTypeMapper(BoundaryTypeMapper value);
 

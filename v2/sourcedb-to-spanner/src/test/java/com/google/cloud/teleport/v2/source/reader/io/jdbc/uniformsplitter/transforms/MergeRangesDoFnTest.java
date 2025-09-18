@@ -49,7 +49,7 @@ public class MergeRangesDoFnTest {
             .setMaxPartitionHint(2L)
             .setApproxTotalRowCount(3200L)
             .setAutoAdjustMaxPartitions(true)
-            .setTableName("testTable")
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .build();
     mergeRangesDoFn.processElement(testRanges, mockOut, mockProcessContext);
 
@@ -80,7 +80,7 @@ public class MergeRangesDoFnTest {
             .setMaxPartitionHint(2L)
             .setApproxTotalRowCount(3200L)
             .setAutoAdjustMaxPartitions(false)
-            .setTableName("testTable")
+            .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
             .build();
     mergeRangesDoFn.processElement(testRanges, mockOut, mockProcessContext);
 

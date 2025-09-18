@@ -17,6 +17,7 @@ package com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.trans
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.Range;
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.TableIdentifier;
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -40,7 +41,7 @@ public abstract class InitialSplitRangeDoFn extends DoFn<Range, ImmutableList<Ra
    */
   abstract long splitHeight();
 
-  abstract String tableName();
+  abstract TableIdentifier tableIdentifier();
 
   private static final Logger logger = LoggerFactory.getLogger(InitialSplitRangeDoFn.class);
 
@@ -56,7 +57,9 @@ public abstract class InitialSplitRangeDoFn extends DoFn<Range, ImmutableList<Ra
     // Note Searching for "RWUPT -" for ReadWithUniformPartition gives the most import logs for the
     // splitting process.
     logger.info(
-        "RWUPT - Began split process for table {} with initial range as {}", tableName(), input);
+        "RWUPT - Began split process for table {} with initial range as {}",
+        tableIdentifier(),
+        input);
 
     ArrayList<Range> ranges = new ArrayList<Range>();
     ranges.add(input.toBuilder().build());
@@ -64,7 +67,7 @@ public abstract class InitialSplitRangeDoFn extends DoFn<Range, ImmutableList<Ra
     for (long i = 0; i < splitHeight(); i++) {
       logger.info(
           "RWUPT - Creating initial split for table {}. Iteration {} of {}",
-          tableName(),
+          tableIdentifier(),
           i,
           splitHeight());
       for (Range range : ranges) {
@@ -82,7 +85,7 @@ public abstract class InitialSplitRangeDoFn extends DoFn<Range, ImmutableList<Ra
     Collections.sort(ranges);
     logger.info(
         "RWUPT - Completed initial split for table {} with initial range as {}, and {} split ranges",
-        tableName(),
+        tableIdentifier(),
         input,
         ranges.size());
     out.output(ImmutableList.copyOf(ranges));
@@ -97,7 +100,7 @@ public abstract class InitialSplitRangeDoFn extends DoFn<Range, ImmutableList<Ra
 
     public abstract Builder setSplitHeight(long value);
 
-    public abstract Builder setTableName(String value);
+    public abstract Builder setTableIdentifier(TableIdentifier value);
 
     public abstract InitialSplitRangeDoFn build();
   }

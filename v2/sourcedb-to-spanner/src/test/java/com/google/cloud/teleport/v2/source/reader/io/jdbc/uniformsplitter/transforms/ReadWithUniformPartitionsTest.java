@@ -15,21 +15,6 @@
  */
 package com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.transforms;
 
-/*
- * Copyright (C) 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- */
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -45,6 +30,7 @@ import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.PartitionColumn;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.Range;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.TableIdentifier;
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.TableSplitSpecification;
 import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.sql.ResultSet;
@@ -327,11 +313,9 @@ public class ReadWithUniformPartitionsTest implements Serializable {
       @Nullable Range initialRange,
       Wait.OnSignal<?> waitOnSignal) {
 
-    ReadWithUniformPartitions.Builder<String> readWithPartitionBuilder =
-        ReadWithUniformPartitions.<String>builder()
-            .setApproxTotalRowCount(approximateTotalCount)
-            .setTableName(tableName)
-            .setInitialRange(initialRange)
+    TableSplitSpecification tableSplitSpecification =
+        TableSplitSpecification.builder()
+            .setTableIdentifier(TableIdentifier.builder().setTableName(tableName).build())
             .setPartitionColumns(
                 ImmutableList.of(
                     PartitionColumn.builder()
@@ -342,6 +326,13 @@ public class ReadWithUniformPartitionsTest implements Serializable {
                         .setColumnName("col2")
                         .setColumnClass(Integer.class)
                         .build()))
+            .build();
+
+    ReadWithUniformPartitions.Builder<String> readWithPartitionBuilder =
+        ReadWithUniformPartitions.<String>builder()
+            .setApproxTotalRowCount(approximateTotalCount)
+            .setTableSplitSpecification(tableSplitSpecification)
+            .setInitialRange(initialRange)
             .setDbAdapter(new MysqlDialectAdapter(MySqlVersion.DEFAULT))
             .setDataSourceProviderFn(dataSourceProviderFn)
             .setAdditionalOperationsOnRanges(testRangesPeek)

@@ -16,6 +16,7 @@
 package com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.transforms;
 
 import com.google.auto.value.AutoValue;
+import com.google.auto.value.extension.memoized.Memoized;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.UniformSplitterDBAdapter;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.columnboundary.ColumnForBoundaryQuery;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.BoundaryTypeMapper;
@@ -23,6 +24,7 @@ import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.Range;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.RangePreparedStatementSetter;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.TableIdentifier;
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.TableSplitSpecification;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.stringmapper.BoundaryTypeMapperImpl;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.stringmapper.CollationMapper;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.stringmapper.CollationReference;
@@ -86,6 +88,15 @@ public abstract class ReadWithUniformPartitions<T> extends PTransform<PBegin, PC
 
   /** List of partition columns. Required parameter. */
   abstract ImmutableList<PartitionColumn> partitionColumns();
+
+  /** Specification for splitting the table. Required parameter. */
+  @Memoized
+  TableSplitSpecification tableSplitSpecification() {
+    return TableSplitSpecification.builder()
+        .setTableIdentifier(TableIdentifier.builder().setTableName(tableName()).build())
+        .setPartitionColumns(partitionColumns())
+        .build();
+  }
 
   /**
    * Approximate count of rows in the table. Required parameter. The caller can set this as per the
@@ -203,7 +214,7 @@ public abstract class ReadWithUniformPartitions<T> extends PTransform<PBegin, PC
     }
 
     ImmutableList<String> colNames =
-        partitionColumns().stream()
+        tableSplitSpecification().partitionColumns().stream()
             .map(PartitionColumn::columnName)
             .collect(ImmutableList.toImmutableList());
     PreparedStatementSetter<Range> rangePrepareator =
@@ -218,7 +229,7 @@ public abstract class ReadWithUniformPartitions<T> extends PTransform<PBegin, PC
                         .setApproxTotalRowCount(approxTotalRowCount())
                         .setMaxPartitionHint(maxPartitionsHint())
                         .setAutoAdjustMaxPartitions(autoAdjustMaxPartitions())
-                        .setTableName(tableName())
+                        .setTableIdentifier(tableSplitSpecification().tableIdentifier())
                         .build())
                 .withSideInputs(typeMapper.getCollationMapperView()));
     PCollection<Range> rangesToRead =
@@ -234,7 +245,9 @@ public abstract class ReadWithUniformPartitions<T> extends PTransform<PBegin, PC
             getTransformName("RangeRead", null),
             buildJdbcIO(
                 JdbcIO.<Range, T>readAll(),
-                dbAdapter().getReadQuery(tableName(), colNames),
+                dbAdapter()
+                    .getReadQuery(
+                        tableSplitSpecification().tableIdentifier().tableName(), colNames),
                 rangePrepareator,
                 dataSourceProviderFn(),
                 rowMapper(),
@@ -280,7 +293,7 @@ public abstract class ReadWithUniformPartitions<T> extends PTransform<PBegin, PC
   private PCollectionView<Map<CollationReference, CollationMapper>> getCollationMapperView(
       PBegin input) {
     ImmutableList<CollationReference> collationReferences =
-        this.partitionColumns().stream()
+        this.tableSplitSpecification().partitionColumns().stream()
             .filter(c -> c.stringCollation() != null)
             .map(PartitionColumn::stringCollation)
             .collect(ImmutableList.toImmutableList());
@@ -300,11 +313,7 @@ public abstract class ReadWithUniformPartitions<T> extends PTransform<PBegin, PC
             .setBoundaryTypeMapper(typeMapper)
             .setDataSourceProviderFn(dataSourceProviderFn())
             .setDbAdapter(dbAdapter())
-            .setPartitionColumns(
-                partitionColumns().stream()
-                    .map(c -> c.columnName())
-                    .collect(ImmutableList.toImmutableList()))
-            .setTableName(tableName())
+            .setTableSplitSpecification(tableSplitSpecification())
             .build();
 
     long splitHeight = logToBaseTwo(initialSplitHint());
@@ -313,8 +322,8 @@ public abstract class ReadWithUniformPartitions<T> extends PTransform<PBegin, PC
     if (initialRange() == null) {
       ColumnForBoundaryQuery initialColumn =
           ColumnForBoundaryQuery.builder()
-              .setTableIdentifier(TableIdentifier.builder().setTableName(tableName()).build())
-              .setPartitionColumn(partitionColumns().get(0))
+              .setTableIdentifier(tableSplitSpecification().tableIdentifier())
+              .setPartitionColumn(tableSplitSpecification().partitionColumns().get(0))
               .setParentRange(null)
               .build();
       initialRange =
@@ -329,7 +338,7 @@ public abstract class ReadWithUniformPartitions<T> extends PTransform<PBegin, PC
         ParDo.of(
                 InitialSplitRangeDoFn.builder()
                     .setSplitHeight(splitHeight)
-                    .setTableName(tableName())
+                    .setTableIdentifier(tableSplitSpecification().tableIdentifier())
                     .build())
             .withSideInputs(typeMapper.getCollationMapperView()));
   }
@@ -342,7 +351,7 @@ public abstract class ReadWithUniformPartitions<T> extends PTransform<PBegin, PC
             .setApproxTotalRowCount(approxTotalRowCount())
             .setMaxPartitionHint(maxPartitionsHint())
             .setAutoAdjustMaxPartitions(autoAdjustMaxPartitions())
-            .setPartitionColumns(partitionColumns())
+            .setPartitionColumns(tableSplitSpecification().partitionColumns())
             .setStageIdx(stageIdx)
             .build();
 
@@ -350,12 +359,8 @@ public abstract class ReadWithUniformPartitions<T> extends PTransform<PBegin, PC
         RangeCountTransform.builder()
             .setDataSourceProviderFn(dataSourceProviderFn())
             .setDbAdapter(dbAdapter())
-            .setPartitionColumns(
-                partitionColumns().stream()
-                    .map(c -> c.columnName())
-                    .collect(ImmutableList.toImmutableList()))
+            .setTableSplitSpecification(tableSplitSpecification())
             .setBoundaryTypeMapper(typeMapper)
-            .setTableName(tableName())
             .setTimeoutMillis(countQueryTimeoutMillis())
             .build();
 
@@ -364,11 +369,7 @@ public abstract class ReadWithUniformPartitions<T> extends PTransform<PBegin, PC
             .setDataSourceProviderFn(dataSourceProviderFn())
             .setBoundaryTypeMapper(typeMapper)
             .setDbAdapter(dbAdapter())
-            .setPartitionColumns(
-                partitionColumns().stream()
-                    .map(c -> c.columnName())
-                    .collect(ImmutableList.toImmutableList()))
-            .setTableName(tableName())
+            .setTableSplitSpecification(tableSplitSpecification())
             .build();
     PCollectionTuple classifiedRanges =
         input.apply(
@@ -409,7 +410,8 @@ public abstract class ReadWithUniformPartitions<T> extends PTransform<PBegin, PC
   }
 
   private String getTransformName(String transformType, @Nullable Long stageIdx) {
-    String name = "Table." + tableName() + "." + transformType;
+    String name =
+        "Table." + tableSplitSpecification().tableIdentifier().tableName() + "." + transformType;
     if (stageIdx != null) {
       name = name + "." + stageIdx;
     }
@@ -461,6 +463,11 @@ public abstract class ReadWithUniformPartitions<T> extends PTransform<PBegin, PC
     public abstract Builder<T> setTableName(String value);
 
     public abstract Builder<T> setPartitionColumns(ImmutableList<PartitionColumn> value);
+
+    public Builder<T> setTableSplitSpecification(TableSplitSpecification tableSplitSpecification) {
+      return this.setTableName(tableSplitSpecification.tableIdentifier().tableName())
+          .setPartitionColumns(tableSplitSpecification.partitionColumns());
+    }
 
     abstract ImmutableList<PartitionColumn> partitionColumns();
 

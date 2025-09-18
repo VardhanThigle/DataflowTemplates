@@ -29,8 +29,10 @@ import static org.mockito.Mockito.withSettings;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.dialectadapter.mysql.MysqlDialectAdapter;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.dialectadapter.mysql.MysqlDialectAdapter.MySqlVersion;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.BoundarySplitterFactory;
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.PartitionColumn;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.Range;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.TableIdentifier;
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.TableSplitSpecification;
 import com.google.common.collect.ImmutableList;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -83,8 +85,15 @@ public class RangeCountDoFnTest {
             mockDataSourceProviderFn,
             2000L,
             new MysqlDialectAdapter(MySqlVersion.DEFAULT),
-            "testTable",
-            ImmutableList.of("col1"));
+            TableSplitSpecification.builder()
+                .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
+                .setPartitionColumns(
+                    ImmutableList.of(
+                        PartitionColumn.builder()
+                            .setColumnName("col1")
+                            .setColumnClass(Long.class)
+                            .build()))
+                .build());
     Range input =
         Range.<Integer>builder()
             .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
@@ -124,8 +133,15 @@ public class RangeCountDoFnTest {
             mockDataSourceProviderFn,
             2000L,
             new MysqlDialectAdapter(MySqlVersion.DEFAULT),
-            "testTable",
-            ImmutableList.of("col1"));
+            TableSplitSpecification.builder()
+                .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
+                .setPartitionColumns(
+                    ImmutableList.of(
+                        PartitionColumn.builder()
+                            .setColumnName("col1")
+                            .setColumnClass(Long.class)
+                            .build()))
+                .build());
     Range input =
         Range.<Integer>builder()
             .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
@@ -162,8 +178,15 @@ public class RangeCountDoFnTest {
             mockDataSourceProviderFn,
             2000L,
             new MysqlDialectAdapter(MySqlVersion.DEFAULT),
-            "testTable",
-            ImmutableList.of("col1"));
+            TableSplitSpecification.builder()
+                .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
+                .setPartitionColumns(
+                    ImmutableList.of(
+                        PartitionColumn.builder()
+                            .setColumnName("col1")
+                            .setColumnClass(Long.class)
+                            .build()))
+                .build());
     Range input =
         Range.<Integer>builder()
             .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
@@ -197,8 +220,15 @@ public class RangeCountDoFnTest {
             mockDataSourceProviderFn,
             2000L,
             new MysqlDialectAdapter(MySqlVersion.DEFAULT),
-            "testTable",
-            ImmutableList.of("col1"));
+            TableSplitSpecification.builder()
+                .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())
+                .setPartitionColumns(
+                    ImmutableList.of(
+                        PartitionColumn.builder()
+                            .setColumnName("col1")
+                            .setColumnClass(Long.class)
+                            .build()))
+                .build());
     Range input =
         Range.<Integer>builder()
             .setTableIdentifier(TableIdentifier.builder().setTableName("testTable").build())

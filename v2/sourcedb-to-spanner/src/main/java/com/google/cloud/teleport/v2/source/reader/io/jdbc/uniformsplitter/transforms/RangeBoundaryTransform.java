@@ -20,7 +20,7 @@ import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.Unifor
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.columnboundary.ColumnForBoundaryQuery;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.BoundaryTypeMapper;
 import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.Range;
-import com.google.common.collect.ImmutableList;
+import com.google.cloud.teleport.v2.source.reader.io.jdbc.uniformsplitter.range.TableSplitSpecification;
 import java.io.Serializable;
 import javax.annotation.Nullable;
 import javax.sql.DataSource;
@@ -48,11 +48,8 @@ public abstract class RangeBoundaryTransform
    */
   abstract UniformSplitterDBAdapter dbAdapter();
 
-  /** Name of the table. */
-  abstract String tableName();
-
-  /** Partition Columns. */
-  abstract ImmutableList<String> partitionColumns();
+  /** Specification for splitting the table. */
+  abstract TableSplitSpecification tableSplitSpecification();
 
   /** Type mapper to help map types like {@link String String.Class}. */
   @Nullable
@@ -65,8 +62,7 @@ public abstract class RangeBoundaryTransform
             new RangeBoundaryDoFn(
                 dataSourceProviderFn(),
                 dbAdapter(),
-                tableName(),
-                partitionColumns(),
+                tableSplitSpecification(),
                 boundaryTypeMapper()));
     if (boundaryTypeMapper() != null) {
       parDo = parDo.withSideInputs(boundaryTypeMapper().getCollationMapperView());
@@ -85,9 +81,7 @@ public abstract class RangeBoundaryTransform
 
     public abstract Builder setDbAdapter(UniformSplitterDBAdapter value);
 
-    public abstract Builder setTableName(String value);
-
-    public abstract Builder setPartitionColumns(ImmutableList<String> value);
+    public abstract Builder setTableSplitSpecification(TableSplitSpecification value);
 
     public abstract Builder setBoundaryTypeMapper(@Nullable BoundaryTypeMapper value);
 
